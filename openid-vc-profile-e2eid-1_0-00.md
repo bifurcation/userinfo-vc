@@ -1,6 +1,6 @@
 %%%
-title = "OpenID Verifiable Credentials profile for E2E Identity"
-abbrev = "openid-vc-profile-e2eid"
+title = "OpenID Connect Verifiable Credentials - Core"
+abbrev = "OIDC VC Core"
 ipr = "none"
 workgroup = "OpenID Connect"
 keyword = ["security", "openid", "ssi", "verifiable credential"]
@@ -38,20 +38,37 @@ organization="Microsoft"
 
 .# Abstract
 
-This specification defines a set of requirements against existing specifications to enable interoperable issuance and verification of credentials binding a public key and user's identity using OpenID Verifiable Credentials.
-
+OpenID Connect Verifiable Credentials is an extension of OpenID Connect 1.0 to
+add support for an OpenID Provider issuing Verifiable Credentials.  This
+document defines a Verifiable Credential format that carries OpenID Conenct
+claims, and profiles the general OpenID for Verifiable Credential Issuance
+specficiation to provide a similar level of interoperability to OpenID Connect.
+We also define a standard mechanism for an OpenID Provider to express credential
+revocation information.
 
 {mainmatter}
 
 # Introduction
 
+[[ RLB ]]
+* Verifiable Credentials open up a new frontier in identity, enabling new use
+  cases and more decentralization / privacy for existing use cases.
+* VCs have struggled to achieve large-scale adoption because the VC framework is
+  very high-level, not defined well enough to be interoperable.
+* This document extends OIDC to support VCs, in a specific format that can be
+  widely interoperable, as a baseline from which more advanced cases might
+  follow.
+
+
 Many applications today provide end-to-end encryption, which protects against inspection or tampering by the communications service provider.  Current applications, however, have only very manual techniques for verifying the identity of other users in a communication, for example, verifying key fingerprints in person.  E2E encryption without identity verification is like HTTPS with self-signed certificates – vulnerable to impersonation attacks.  There is a need for something to do what ACME and the Web PKI do for HTTPS, enabling users to prove their identities to one another with a high degree of automation.
 
 E2E encryption protocols provide a starting point.  Users in these protocols are represented by cryptographic public keys.  One of the functions of the protocol is to prove that each user possesses the private key corresponding to their public key.  These protocols can also usually send “credentials” that bind identity information to a user’s public key.
 
-The  
 
 # Terminology
+
+[[ RLB ]]
+* TODO Map OpenID Connect roles to VC roles, maybe with a picture?
 
 Verifiable Credential (VC)
 
@@ -87,6 +104,14 @@ Base64url Encoding
 Base64 encoding using the URL- and filename-safe character set defined in Section 5 of [@!RFC4648], with all trailing '=' characters omitted (as permitted by Section 3.2 of [@!RFC4648]) and without the inclusion of any line breaks, whitespace, or other additional characters. Note that the base64url encoding of the empty octet sequence is the empty string. (See Appendix C of [@!RFC7515] for notes on implementing base64url encoding without padding.)
 
 # Use Cases
+
+[[ RLB ]]
+* Securing Identity in E2E-secure Applications
+  * Holder = Verifier = E2E-secure app
+  * Public key connects to E2E encryption layer
+* VC-based Login
+  * Holder = wallet (or something)
+  * Verifier = app that wants to log user in
 
 ## Application obtaining credentials containing public key and identity
 
@@ -172,37 +197,58 @@ HTTP/1.1 200 OK
 }
 ```
 
-## Validation
+# Design Principles
 
-# Credential Format 
+* Maximize ease of interop => No unnecessary flexibility
+* Don't foreclose more flexibility in the future
+* Maximize code reuse for OIDC clients and servers
 
-* JWT formatted
+# OpenID Connect Verifiable Credential Format
 
-* credentialSubject = OpenID Claims
+* credentialSubject.id = did:jwk or thumbprint URI -- latter consistent with "cnf.jkt"
+* remainder of credentialSubject = same claims as UserInfo endpoint
+* MUST be JWT, "instead of"; special "typ" value?
+* Issuer keys looked up with ... OIDC Discovery?
+* SHOULD have revocation info
 
-* credentialSubject.id = JWK thumbprint URL
+```
+[ example vc ]
+```
 
-* xxx how revocation ties in
+# Verifiable Credential Issuance
 
-# Credential validation 
+* Scope value to authorize credential issuance
+* MUST support VCI endpoint
+* [[ required parameters ]]
 
-* Fetch keys using “iss” or a key bundle
+```
+[ example request ]
+```
 
-* Validate using matching KID
 
-* Asynchronous key distribution 
+# Verifiable Credential Revocation
 
-  * “Key bundle” = JWKS as JWS signed with a WebPKI cert
+* Revocation endpoint advertised in VCs MUST be ...
 
-  * how key bundle is distributed - new URL or negotiation on JWKS URL
+```
+[ vc integration in jwt above; status request here ]
+```
 
-# Issuance profile 
 
-xxx What do we need to nail down here from the core spec?
+# Asynchronous Issuer JWK Set Distribution
 
-# Revocation 
+* JWKS URL SHOULD support Accept
+* If you get Accept: application/jws+json, return a JWS:
+  * alg = ?
+  * x5c = WebPKI certificate chain that verifies issuer URL
 
-xxx GET request for a signed list of credential IDs
+
+# Verifiable Credential Validation
+
+* [[ Is there a VC algorithm to profile? ]]
+* Fetch JWKS from issuer, e.g., using discovery or bundle
+* Verify signature 
+* Check revocation
 
 # Security Considerations {#security-considerations}
 

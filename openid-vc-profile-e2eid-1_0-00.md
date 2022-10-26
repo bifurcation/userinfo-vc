@@ -211,8 +211,54 @@ HTTP/1.1 200 OK
 * Issuer keys looked up with ... OIDC Discovery?
 * SHOULD have revocation info
 
+* "alg" - supported algorithms advertised, configured for client
+* "kid" MUST be present
+* "sub" MUST be present = jkt URI   <------- POSSIBLE POINT OF CONFLICT!
+* "iss" MUST
+* "aud" MAY
+* "jti" <- according to VCDM
+* "nbf" <- according to VCDM
+* "exp" <- according to VCDM
+* vc["@context"] = [fixed]
+* vc.type = [fixed]
+* vc.credentialSubject = UserInfo
+* vc.credentialStatus = StatusList2021 [OPTIONAL]
+
+
 ```
-[ example vc ]
+JWT header = {
+  "alg": "ES256",
+  "typ": "JWT"
+}
+
+JWT payload = {
+  "vc": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://openid.org/connect/vc/v1"
+    ],
+    "type": [
+      "VerifiableCredential",
+      "OpenIDCredential"
+    ],
+    "credentialSubject": {
+      "id": "did:jwk:...",
+      "given_name": "John",
+      "family_name": "Public",
+      "email": "jpublic@example.org",
+      "email_verified": true,
+      "phone_number": "+1 202 555 1212",
+    },
+    "credentialStatus": {
+      "type": "StatusList2021",
+      "id": "http://
+    }
+  },
+  "iss": "https://server.example.com/",
+  "nbf": 1262304000,
+  "jti": "http://server.example.com/credentials/3732",
+  "sub": "did:jwk:..."
+}
 ```
 
 # Verifiable Credential Issuance

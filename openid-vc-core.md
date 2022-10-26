@@ -482,18 +482,61 @@ the OP's support for OIDC VCs and ensure interoperability:
 
 # Asynchronous Issuer JWK Set Distribution
 
-* JWKS URL SHOULD support Accept
-* If you get Accept: application/jws+json, return a JWS:
-  * alg = ?
-  * x5c = WebPKI certificate chain that verifies issuer URL
+One benefit of verifiable credentials is that the relationship between the
+credential Issuer (here the OP) and the Verifier is more arms-length.  The
+Verifier only needs to know how to verify signatures from a trusted Issuer.
 
+Verifiers can discover the JWK Set for a given Issuer OP using OpenID Connect
+Discovery, as discussed in [](#verifiable-credential-validation).  However, this
+risks introducing a requirement that the Issuer's discovery endpoint be online
+at the time of verification.  In order to avoid such a requirement, this section
+defines a mechanism for an OP to sign its JWK Set to prove its authenticity to
+verifiers.  Such a signed JWK Set can be provided to a Verifier by an untrusted
+party (for example, the party presenting a credential), not just the OP.
 
-# Verifiable Credential Validation
+A Verifier requests a signed JWK Set by sending an HTTP GET request to the OP's
+JWKS URL with the value `application/jose` in the HTTP `Accept` header field.
 
-* [[ Is there a VC algorithm to profile? ]]
-* Fetch JWKS from issuer, e.g., using discovery or bundle
-* Verify signature 
-* Check revocation
+An OP provides a signed JWK Set in a response to such a request by sending a
+response containing a JWS object of the following form:
+
+* The payload of the JWS object MUST be the OP's JWK Set, encoded as JSON using
+  UTF-8.
+
+* The JWS object MUST be in the JWS compact format.
+
+* The `x5c` field of the JWS header MUST be populated with a certificate chain
+  that authenticates the domain name in the OP's Issuer Identifier.  The host
+  name in the Issuer Identifier MUST appear as a `dNSName` entry in the
+  `subjectAltName` extension of the end-entity certificate.
+
+* The `alg` field of the JWS header MUST represent an algorithm that is
+  compatible with the subject public key of the certificate in the `x5c`
+  parameter.
+
+```
+GET /jwks HTTP/1.1
+Host: server.example.com
+Accept: application/jose
+
+HTTP/1.1 200 OK
+Content-Type: application/jose
+
+[[ TODO example JWK set ]]
+```
+
+A Verifier that receives such a signed JWK Set validates it by taking the
+folloinwg steps:
+
+1. Verify that the certificate chain in the `x5c` field is valid from a trusted
+   certificate authority.
+
+1. Verify that the end-entity certificate matches the Issuer Identifier as
+   described above,.
+
+1. Verify the signature on the JWS using the subject public key of the
+   end-entity certificate
+
 
 # Security Considerations {#security-considerations}
 

@@ -7,7 +7,7 @@ keyword = ["security", "openid", "ssi", "verifiable credential"]
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "openid-vc-profile-e2eid-1_0-00"
+value = "openid-vc-core-latest"
 status = "standard"
 
 [[author]]
@@ -72,20 +72,20 @@ E2E encryption protocols provide a starting point.  Users in these protocols are
 
 Verifiable Credential (VC)
 
-A verifiable Credential is a tamper-evident Credential that has authorship that can be cryptographically verified. Verifiable Credentials can be used to build verifiable presentations, which can also be cryptographically verified (see [@VC_DATA]).
-Note that this specification uses a term "credential" as defined in Section 2 of [@VC_DATA], which is a different definition than in [@!OpenID.Core].
+A verifiable Credential is a tamper-evident Credential that has authorship that can be cryptographically verified. Verifiable Credentials can be used to build verifiable presentations, which can also be cryptographically verified (see [@W3C.vc-data-model]).
+Note that this specification uses a term "credential" as defined in Section 2 of [@W3C.vc-data-model], which is a different definition than in [@!OpenID.Core].
 
 Credential
 
-A set of one or more claims made by a Credential Issuer (see [@VC_DATA]). Note that this definition differs from that in [@OpenID.Core].
+A set of one or more claims made by a Credential Issuer (see [@W3C.vc-data-model]). Note that this definition differs from that in [@OpenID.Core].
 
 Presentation
 
-Data derived from one or more verifiable Credentials, issued by one or more Credential Issuers, that is shared with a specific verifier (see [@VC_DATA]).
+Data derived from one or more verifiable Credentials, issued by one or more Credential Issuers, that is shared with a specific verifier (see [@W3C.vc-data-model]).
 
 Verifiable Presentation (VP)
 
-A verifiable presentation is a tamper-evident presentation encoded in such a way that authorship of the data can be trusted after a process of cryptographic verification. Certain types of verifiable presentations might contain data that is synthesized from, but do not contain, the original verifiable Credentials (for example, zero-knowledge proofs) (see [@VC_DATA]).
+A verifiable presentation is a tamper-evident presentation encoded in such a way that authorship of the data can be trusted after a process of cryptographic verification. Certain types of verifiable presentations might contain data that is synthesized from, but do not contain, the original verifiable Credentials (for example, zero-knowledge proofs) (see [@W3C.vc-data-model]).
 
 Wallet
 
@@ -205,25 +205,55 @@ HTTP/1.1 200 OK
 
 # OpenID Connect Verifiable Credential Format
 
-* credentialSubject.id = did:jwk or thumbprint URI -- latter consistent with "cnf.jkt"
-* remainder of credentialSubject = same claims as UserInfo endpoint
-* MUST be JWT, "instead of"; special "typ" value?
-* Issuer keys looked up with ... OIDC Discovery?
-* SHOULD have revocation info
+The OpenID Connect Verifiable Credential Format (OIDC VC) is a profile of the
+JSON/JWT syntax for verifiable credentials.  The following restrictions apply:
 
-* "alg" - supported algorithms advertised, configured for client
-* "kid" MUST be present
-* "sub" MUST be present = jkt URI   <------- POSSIBLE POINT OF CONFLICT!
-* "iss" MUST
-* "aud" MAY
-* "jti" <- according to VCDM
-* "nbf" <- according to VCDM
-* "exp" <- according to VCDM
-* vc["@context"] = [fixed]
-* vc.type = [fixed]
-* vc.credentialSubject = UserInfo
-* vc.credentialStatus = StatusList2021 [OPTIONAL]
+* An OIDC VC MUST be represented as a JWT-formatted VC, as specified in Section
+  6.3.1 of [@W3C.vc-data-model].  The `alg`, `kid`, and `typ` fields in the JWT
+  header and the `exp`, `iss`, `nbf`, `jti`, and `sub` claims MUST be populated
+  as specified in that section.  The corresponding subfields of the `vc` claim
+  SHOULD be omitted.
 
+* The `kid` field in the JWT header MUST be set.
+
+* The `sub` claim MUST be a JWK Thumbprint URL [@RFC9278], reflecting the public
+  key that the credential subject presented in their credential request (see
+  [](#verifiable-credential-issuance)).
+
+* The `iss` claim MUST be set to the Issuer Identifier for the OpenID Provider.
+
+* The `aud` claime MUST be omitted.
+
+* In the `vc` claim, the `@context` field MUST be a JSON array with the
+  following two entries, in order:
+  * `"https://www.w3.org/2018/credentials/v1"`
+  * `"https://openid.org/connect/vc/v1"`
+
+* In the `vc` claim, the `type` field MUST be a JSON array with the following
+  two entries, in order:
+  * `"VerifiableCredential"`
+  * `"OpenIDCredential"`
+
+* In the `vc` claim, the `credentialSubject` field MUST be a JSON object,
+  populated with the same set of claims that a response from the OIDC
+  UserInfo endpoint would provide.  In particular, the `sub` claim MUST be
+  provided.
+
+* In the `vc` claim, the `credentialStatus` field MAY be populated as
+  specified in [@StatusList2021].
+
+Note that there are two `sub` claims present in this object, one as a top-level
+JWT claim, and one as a field within the `credentialSubject` object.  The `sub`
+claim within the `credentialSubject` has the same semantic as the same claim in
+an ID token or UserInfo response.  The top-level `iss` claim and the
+`vc.credentialSubject.sub` field form a stable identifier for the end user, just
+as in an ID token.  The top-level `sub` claim identifies the specific subject of
+this credential, namely the holder of corresponding private key.  The verifiable
+credential is an assertion by the OP that these two entities are the same, based
+on the proof provided in the authorization request and the credential request.
+
+The following OIDC VC would represent the same user as the UserInfo response
+example in [@OpenID.Core]:
 
 ```
 JWT header = {
@@ -232,6 +262,11 @@ JWT header = {
 }
 
 JWT payload = {
+  "iss": "https://server.example.com/",
+  "nbf": 1262304000,
+  "exp": 1262908800,
+  "jti": "http://server.example.com/credentials/3732",
+  "sub": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
   "vc": {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
@@ -242,22 +277,22 @@ JWT payload = {
       "OpenIDCredential"
     ],
     "credentialSubject": {
-      "id": "did:jwk:...",
-      "given_name": "John",
-      "family_name": "Public",
-      "email": "jpublic@example.org",
-      "email_verified": true,
-      "phone_number": "+1 202 555 1212",
+      "sub": "248289761001",
+      "name": "Jane Doe",
+      "given_name": "Jane",
+      "family_name": "Doe",
+      "preferred_username": "j.doe",
+      "email": "janedoe@example.com",
+      "picture": "http://example.com/janedoe/me.jpg"
     },
     "credentialStatus": {
-      "type": "StatusList2021",
-      "id": "http://
+      "id": "https://server.example.com/credentials/status/3#94567"
+      "type": "StatusList2021Entry",
+      "statusPurpose": "revocation",
+      "statusListIndex": "94567",
+      "statusListCredential": "https://server.example.com/credentials/status/3"
     }
   },
-  "iss": "https://server.example.com/",
-  "nbf": 1262304000,
-  "jti": "http://server.example.com/credentials/3732",
-  "sub": "did:jwk:..."
 }
 ```
 
@@ -310,41 +345,25 @@ TBD
 
 {backmatter}
 
-<reference anchor="VC_DATA" target="https://www.w3.org/TR/vc-data-model">
+<reference anchor="StatusList2021" target="https://www.w3.org/TR/vc-data-model">
   <front>
-    <title>Verifiable Credentials Data Model 1.0</title>
+    <title>Status List 2021</title>
     <author fullname="Manu Sporny">
       <organization>Digital Bazaar</organization>
-    </author>
-    <author fullname="Grant Noble">
-      <organization>ConsenSys</organization>
     </author>
     <author fullname="Dave Longley">
       <organization>Digital Bazaar</organization>
     </author>
-    <author fullname="Daniel C. Burnett">
-      <organization>ConsenSys</organization>
+    <author fullname="Orie Steele">
+      <organization>Transmute</organization>
     </author>
-    <author fullname="Brent Zundel">
-      <organization>Evernym</organization>
+    <author fullname="Mike Prorock">
+      <organization>mesur.io</organization>
     </author>
-    <author fullname="David Chadwick">
-      <organization>University of Kent</organization>
+    <author fullname="Mahmoud Alkhraishi">
+      <organization>Mavennet</organization>
     </author>
-   <date day="19" month="Nov" year="2019"/>
-  </front>
-</reference>
-
-<reference anchor="SIOPv2" target="https://openid.net/specs/openid-connect-self-issued-v2-1_0.html">
-  <front>
-    <title>Self-Issued OpenID Provider V2</title>
-    <author ullname="Kristina Yasuda">
-      <organization>Microsoft</organization>
-    </author>
-    <author fullname="Michael B. Jones">
-      <organization>Microsoft</organization>
-    </author>
-   <date day="18" month="December" year="2021"/>
+   <date day="16" month="Jun" year="2022"/>
   </front>
 </reference>
 

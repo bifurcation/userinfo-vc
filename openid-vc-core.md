@@ -3,7 +3,7 @@ title = "OpenID Connect Verifiable Credentials - Core"
 abbrev = "OIDC VC Core"
 ipr = "none"
 workgroup = "OpenID Connect"
-keyword = ["security", "openid", "ssi", "verifiable credential"]
+keyword = ["security", "openid", "verifiable credential"]
 
 [seriesInfo]
 name = "Internet-Draft"
@@ -242,6 +242,11 @@ JSON/JWT syntax for verifiable credentials.  The following restrictions apply:
 * In the `vc` claim, the `credentialStatus` field MAY be populated as
   specified in [@StatusList2021].
 
+An OIDC VC is thus a JWT that can be verified in largely the same way as the
+other JWTs produced by OpenID Connect (e.g., ID tokens and signed UserInfo
+responses), but using the VC syntax to present a public key for the credential
+subject in addition to the claims provided by the OP.
+
 Note that there are two `sub` claims present in this object, one as a top-level
 JWT claim, and one as a field within the `credentialSubject` object.  The `sub`
 claim within the `credentialSubject` has the same semantic as the same claim in
@@ -258,6 +263,7 @@ example in [@OpenID.Core]:
 ```
 JWT header = {
   "alg": "ES256",
+  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
   "typ": "JWT"
 }
 
@@ -296,24 +302,182 @@ JWT payload = {
 }
 ```
 
-# Verifiable Credential Issuance
 
-* Scope value to authorize credential issuance
-* MUST support VCI endpoint
-* [[ required parameters ]]
+# Verifiable Credential Validation
 
-```
-[ example request ]
-```
+A Verifier processing an OIDC VC MUST validate it in the following manner:
+
+1. The `alg` value MUST represent a digital signature algorithm supported by the
+   Verifier.  The `alg` value MUST NOT represent a MAC based algorithm such as
+   HS256, HS384, or HS512.
+
+1. If the Verifier has not been provisioned with a public key with which to
+   verify the VC, the Verifier MAY use the `iss` claim to locate the keys using
+   OpenID Connect Discovery [@OpenID.Discovery].  To do this, the Verifier:
+
+    * Sends a Discovery request for the specified Issuer Identifier
+    * Fetches the JWK Set referenced by the `jwks_uri` field in the provider metadata
+    * Identifies the key in the JWK Set corresponding to the `kid` field in the VC
+
+1. The current time MUST be after the time represented in the `nbf` claim (if
+   present) and before the time represented by the `exp` claim.
+
+1. If the `vc` claim has a `credentialStatus` field, the Verifier SHOULD verify
+   the revocation status as described in [](#verifiable-credential-revocation).
+   If the credential is suspended or revoked, then it MUST be rejected.
 
 
 # Verifiable Credential Revocation
 
-* Revocation endpoint advertised in VCs MUST be ...
+As described in [](#openid-connect-verifiable-credential-format), an OIDC VC may
+contain revocation information using the "StatusList2021" mechanism, which
+provides a concise list of credentials revoked by an OP in a "status list
+credential".  Status list credentials for OIDC VCs MUST meet the following
+requirements, in addition to the requirements of [@StatusList2021]:
+
+* An status list credential MUST be represented as a JWT-formatted VC, as
+  specified in Section 6.3.1 of [@W3C.vc-data-model].  The `alg`, `kid`, and
+  `typ` fields in the JWT header and the `exp`, `iss`, `nbf`, `jti`, and `sub`
+  claims MUST be populated as specified in that section.  The corresponding
+  subfields of the `vc` claim SHOULD be omitted.
+
+* The `iss` claim MUST be equal to the `iss` claim of the credential being
+  validated.
+
+* The `jti` claim, if present, MUST be equal to the `statusListCredential` field
+  of the credential being validated.
+
+* The `vc` claim MUST NOT contain a `credentialStatus` field.
 
 ```
-[ vc integration in jwt above; status request here ]
+JWT header = {
+  "alg": "ES256",
+  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
+  "typ": "JWT"
+}
+
+JWT payload = {
+  "iss": "https://server.example.com/",
+  "iat": 1617632860,
+  "exp": 1618237660,
+  "jti": "https://server.example.com/credentials/status/3",
+  "sub": "https://server.example.com/status/3#list"
+
+  "vc": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/vc/status-list/2021/v1"
+    ],
+    "type": [
+      "VerifiableCredential",
+      "StatusList2021Credential"
+    ],
+    "credentialSubject": {
+      "type": "StatusList2021",
+      "statusPurpose": "revocation",
+      "encodedList": "H4sIAAAAAAAAA-3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAIC3AYbSVKsAQAAA"
+    },
+  },
+}
 ```
+
+A Verifier processing the VC checks the revocation status of the credential
+using the following steps:
+
+1. Fetch the status list credential from URL in the `statusListCredential` field
+   of the `credentialStatus` object.
+
+1. Verify that the credential meets the criteria above.
+
+1. Verify the signature and expiration status of the status list credential.
+
+1. Perform the "Validate Algorithm" defined in [@StatusList2021].
+
+If the final step returns `true`, then the Verifier MUST regard the certificate
+as suspended or revoked (depending on the `statusPurpose`).  In either case, the
+Verifier MUST reject the credential.  If any step fails, then the Verifier
+SHOULD reject the credential.
+
+
+# Verifiable Credential Issuance
+
+The OP MUST support the OpenID for Verifiable Credential Issuance [@OpenID4VCI].
+Overall, the OIDC VC issuance process unfolds in the following steps:
+
+* The client sends an authorization request requesting the `openid_credential`
+  scope and receives a successful authorization response.
+
+* The client sends a normal OpenID Connect token request.
+
+* The client sends a "priming" request to the OP's credential endpoint.  The
+  response to this request provides a nonce that the client will include in its
+  proof of possession in the subsequent request.
+
+* The client computes a JWT proof of possession of a private key and sends this
+  in a request to the credential endpoint.  The response to this request
+  provides the client with OIDC VC covering its identity attributes and the
+  client's public key.
+
+To support this flow, the OP MUST meet the following requirements, which reflect
+the OP's support for OIDC VCs and ensure interoperability:
+
+* The OP's discovery metadata MUST include a `credential_endpoint` field.
+
+* The OP's discovery metadata MUST include a `credentials_supported` field.
+  This field MUST be a JSON object containing a `OpenIDCredential` key.  The
+  value corresponding to this key MUST be a JSON object containing a `jwt_vc`
+  key.  The value corresponding to the `jwt_vc` SHOULD be an empty JSON object.
+
+```
+{
+  // ... other metadata fields
+  "credential_endpoint": "https://server.example.com/credential",
+  "credentials_supported": {
+    "OpenIDCredential": {
+      "jwt_vc": {}
+    }
+  }
+}
+```
+
+* The OP's discovery metadata MUST include a
+  `credential_request_alg_values_supported` field.
+
+[[ TODO: File an issue on OpenID4VCI to add this metadata field ]]
+
+* The OP MUST support a `scope` value `openid_credential`.  This scope requests
+  authorization to issue OIDC VCs using the OP's credential endpoint.  In
+  particular, if the `openid_credential` scope is granted for a particular
+  access token, then the credential endpoint MUST allow requests authenticated
+  with that access token if they have `type` set to OpenIDCredential.
+
+* The OP's credential endpoint MUST support "priming" requests containing only a
+  `type` parameter set to `"OpenIDCredential"`. The response to such a request
+  MUST be a JSON object providing `c_nonce` and `c_nonce_expires_in` fields.
+
+* The OP's credential endpoint MUST support requests using the following parameters:
+  * `type`: `"OpenIDCredential"`
+  * `format`: `"jwt_vc"`
+  * `proof.proof_type`: `jwt`
+  * `proof.jwt`: A proof JWT as described in [@OpenID4VCI].  This JWT MUST
+    include a `jwk` header parameter.
+
+* A successful credential response to a credential request with `type` set to
+  `OpenIDCredential` and `format` set to `jwt_vc` MUST be synchronous, not
+  deferred.  The response MUST contain the following values:
+  * `format`: `"jwt_vc"`
+  * `credential`: An OIDC VC as described in
+    [](#openid-connect-verifiable-credential-format).  The `sub` value of this
+    VC MUST be the JWK Thumbprint URI for the public key in the `jwk` header
+    parameter of the proof JWT in the request.
+
+
+[[ TODO: Example flow, possibly in an appendix ]]
+* Discovery request / response
+* Authz request / response
+* Token request / response
+* Credential priming request / response
+* Credential request / response
 
 
 # Asynchronous Issuer JWK Set Distribution
@@ -384,6 +548,25 @@ TBD
     </author>
     <author initials="C." surname="Mortimore" fullname="Chuck Mortimore">
       <organization>Salesforce</organization>
+    </author>
+   <date day="8" month="Nov" year="2014"/>
+  </front>
+</reference>
+
+<reference anchor="OpenID.Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+  <front>
+    <title>OpenID Connect Discovery 1.0 incorporating errata set 1</title>
+    <author initials="N." surname="Sakimura" fullname="Nat Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author initials="J." surname="Bradley" fullname="John Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author initials="M." surname="Jones" fullname="Michael B. Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author initials="E." surname="Jay" fullname="Edmund Jay">
+      <organization>Illumila</organization>
     </author>
    <date day="8" month="Nov" year="2014"/>
   </front>

@@ -106,11 +106,17 @@ Base64 encoding using the URL- and filename-safe character set defined in Sectio
 # Use Cases
 
 [[ RLB ]]
+
 * Securing Identity in E2E-secure Applications
+
   * Holder = Verifier = E2E-secure app
+
   * Public key connects to E2E encryption layer
+
 * VC-based Login
+
   * Holder = wallet (or something)
+
   * Verifier = app that wants to log user in
 
 ## Application obtaining credentials containing public key and identity

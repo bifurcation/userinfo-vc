@@ -27,6 +27,14 @@ organization="Cisco Systems"
     email = "rlb@ipv.sx"
 
 [[author]]
+initials="P."
+surname="Kasselman"
+fullname="Pieter Kasselman"
+organization="Microsoft"
+    [author.address]
+    email = "pieter.kasselman@microsoft.com"
+
+[[author]]
 initials="K."
 surname="Yasuda"
 fullname="Kristina Yasuda"
@@ -40,9 +48,9 @@ organization="Microsoft"
 
 OpenID Connect Verifiable Credentials is an extension of OpenID Connect 1.0 to
 add support for an OpenID Provider issuing Verifiable Credentials.  This
-document defines a Verifiable Credential format that carries OpenID Conenct
+document defines a Verifiable Credential format that carries OpenID Connect
 claims, and profiles the general OpenID for Verifiable Credential Issuance
-specficiation to provide a similar level of interoperability to OpenID Connect.
+specification to provide a similar level of interoperability to OpenID Connect.
 We also define a standard mechanism for an OpenID Provider to express credential
 revocation information.
 
@@ -51,14 +59,18 @@ revocation information.
 # Introduction
 
 [[ RLB ]]
+
 * Verifiable Credentials open up a new frontier in identity, enabling new use
   cases and more decentralization / privacy for existing use cases.
+
 * VCs have struggled to achieve large-scale adoption because the VC framework is
   very high-level, not defined well enough to be interoperable.
+
 * This document extends OIDC to support VCs, in a specific format that can be
   widely interoperable, as a baseline from which more advanced cases might
   follow.
 
+[[ /RLB ]]
 
 Many applications today provide end-to-end encryption, which protects against inspection or tampering by the communications service provider.  Current applications, however, have only very manual techniques for verifying the identity of other users in a communication, for example, verifying key fingerprints in person.  E2E encryption without identity verification is like HTTPS with self-signed certificates – vulnerable to impersonation attacks.  There is a need for something to do what ACME and the Web PKI do for HTTPS, enabling users to prove their identities to one another with a high degree of automation.
 
@@ -119,6 +131,8 @@ Base64 encoding using the URL- and filename-safe character set defined in Sectio
 
   * Verifier = app that wants to log user in
 
+[[ /RLB ]]
+
 ## Application obtaining credentials containing public key and identity
 
 An application currently utilizing OpenID Connect for accessing various federated identity providers can use the same infrastructure to obtain credentials binding its public key to the identity of the user.
@@ -134,74 +148,17 @@ This specification defines a profile of OpenID for Verifiable Credential Issuanc
 ## Issuance
 The application initiates the process by performing standard OpenID Connect authorization and token requests to the OpenID Provider. The authorization request is done using appropriate scope allowing the application to issue a Verifiable Credential.
 
-xxx Do we need example here? This part is already covered in core spec and then in OpenID4VCI, though example might be nice to show example of scope and also nounce in token response
+[[ MA ]] Do we need an example here? This part is already covered in core spec and then in OpenID4VCI, though example might be nice to show example of scope and also nounce in token response
 
 The verifiable credential issuance is done using a request to the OpenID Provider’s credential endpoint as defined in Credential Endpoint section of [@!OpenID4VCI]. This request is authenticated with the application's key pair. The first request simply fetches a nonce to be used in the second request. The second request provides proof that the client possesses the private key of the key pair that will represent the credential subject. The OpenID Provider verifies that the private key that signed the JWT corresponds to one of the public keys referenced by the DID. The response provides the desired credential.
 
-Below is a non-normative example of a `proof` parameter (line breaks for display purposes only):
+## Verification
 
-```json
-{
-  "proof_type": "jwt",
-  "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxYzI3NmUxMmVjMjEva2V5cy8
-  xIiwiYWxnIjoiRVMyNTYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJzNkJoZFJrcXQzIiwiYXVkIjoiaHR
-  0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJpYXQiOiIyMDE4LTA5LTE0VDIxOjE5OjEwWiIsIm5vbm
-  NlIjoidFppZ25zbkZicCJ9.ewdkIkPV50iOeBUqMXCC_aZKPxgihac0aW9EkL1nOzM"
-  }
-```
+Verifier can verify credentials using one of the two mechanisms. If the verifier has been provisioned with a public key, it can use the key to verify the crednetials. Alternatively it can use OpenID Connect Discovery [@OpenID.Discovery] to fetch the OP's JWK Set and use the coresponding key to verify the credentials as described in (#verifiable-credential-validation)
 
-where the JWT looks like this:
+## Revocation
 
-```json
-{
-  "alg": "ES256",
-  "kid":"did:example:ebfeb1f712ebc6f1c276e12ec21/keys/1"
-}.
-{
-  "iss": "s6BhdRkqt3",
-  "aud": "https://server.example.com",
-  "iat": 1659145924,
-  "nonce": "tZignsnFbp"
-}
-```
-
-Below is a non-normative example of a Credential Request:
-
-```
-POST /credential HTTP/1.1
-Host: server.example.com
-Content-Type: application/json
-Authorization: BEARER czZCaGRSa3F0MzpnWDFmQmF0M2JW
-
-{
-  "type": "https://did.example.org/KeyBinding"
-  "format": "ldp_vc",
-  "proof": {
-    "proof_type": "jwt",
-    "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxYzI3NmUxMmVjMjEva2V5cy8
-    xIiwiYWxnIjoiRVMyNTYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJzNkJoZFJrcXQzIiwiYXVkIjoiaHR
-    0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJpYXQiOiIyMDE4LTA5LTE0VDIxOjE5OjEwWiIsIm5vbm
-    NlIjoidFppZ25zbkZicCJ9.ewdkIkPV50iOeBUqMXCC_aZKPxgihac0aW9EkL1nOzM"
-  }
-}
-```
-
-xxx What format should the request be done in our case? jwt_vc might be a better option than ldp_vc?
-
-Below is a non-normative example of a Credential Response in a synchronous flow:
-
-```
-HTTP/1.1 200 OK
-  Content-Type: application/json
-  Cache-Control: no-store
-
-{
-  "format": "ldp_vc"
-  "credential" : "LUpixVCWJk0eOt4CXQe1NXK....WZwmhmn9OQp6YxX0a2L",
-  "c_nonce": "fGFF7UkhLa",
-  "c_nonce_expires_in": 86400  
-}
-```
+An OpenID Connect VC may contain revocation information using the "StatusList2021" mechanism. This enables the OP to provide a concise list of revoked credentials as described in (#verifiable-credential-revocation).
 
 # Design Principles
 
@@ -224,7 +181,7 @@ JSON/JWT syntax for verifiable credentials.  The following restrictions apply:
 
 * The `sub` claim MUST be a JWK Thumbprint URL [@RFC9278], reflecting the public
   key that the credential subject presented in their credential request (see
-  [](#verifiable-credential-issuance)).
+  (#verifiable-credential-issuance)).
 
 * The `iss` claim MUST be set to the Issuer Identifier for the OpenID Provider.
 
@@ -309,101 +266,6 @@ JWT payload = {
 ```
 
 
-# Verifiable Credential Validation
-
-A Verifier processing an OIDC VC MUST validate it in the following manner:
-
-1. The `alg` value MUST represent a digital signature algorithm supported by the
-   Verifier.  The `alg` value MUST NOT represent a MAC based algorithm such as
-   HS256, HS384, or HS512.
-
-1. If the Verifier has not been provisioned with a public key with which to
-   verify the VC, the Verifier MAY use the `iss` claim to locate the keys using
-   OpenID Connect Discovery [@OpenID.Discovery].  To do this, the Verifier:
-
-    * Sends a Discovery request for the specified Issuer Identifier
-    * Fetches the JWK Set referenced by the `jwks_uri` field in the provider metadata
-    * Identifies the key in the JWK Set corresponding to the `kid` field in the VC
-
-1. The current time MUST be after the time represented in the `nbf` claim (if
-   present) and before the time represented by the `exp` claim.
-
-1. If the `vc` claim has a `credentialStatus` field, the Verifier SHOULD verify
-   the revocation status as described in [](#verifiable-credential-revocation).
-   If the credential is suspended or revoked, then it MUST be rejected.
-
-
-# Verifiable Credential Revocation
-
-As described in [](#openid-connect-verifiable-credential-format), an OIDC VC may
-contain revocation information using the "StatusList2021" mechanism, which
-provides a concise list of credentials revoked by an OP in a "status list
-credential".  Status list credentials for OIDC VCs MUST meet the following
-requirements, in addition to the requirements of [@StatusList2021]:
-
-* An status list credential MUST be represented as a JWT-formatted VC, as
-  specified in Section 6.3.1 of [@W3C.vc-data-model].  The `alg`, `kid`, and
-  `typ` fields in the JWT header and the `exp`, `iss`, `nbf`, `jti`, and `sub`
-  claims MUST be populated as specified in that section.  The corresponding
-  subfields of the `vc` claim SHOULD be omitted.
-
-* The `iss` claim MUST be equal to the `iss` claim of the credential being
-  validated.
-
-* The `jti` claim, if present, MUST be equal to the `statusListCredential` field
-  of the credential being validated.
-
-* The `vc` claim MUST NOT contain a `credentialStatus` field.
-
-```
-JWT header = {
-  "alg": "ES256",
-  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
-  "typ": "JWT"
-}
-
-JWT payload = {
-  "iss": "https://server.example.com/",
-  "iat": 1617632860,
-  "exp": 1618237660,
-  "jti": "https://server.example.com/credentials/status/3",
-  "sub": "https://server.example.com/status/3#list"
-
-  "vc": {
-    "@context": [
-      "https://www.w3.org/2018/credentials/v1",
-      "https://w3id.org/vc/status-list/2021/v1"
-    ],
-    "type": [
-      "VerifiableCredential",
-      "StatusList2021Credential"
-    ],
-    "credentialSubject": {
-      "type": "StatusList2021",
-      "statusPurpose": "revocation",
-      "encodedList": "H4sIAAAAAAAAA-3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAIC3AYbSVKsAQAAA"
-    },
-  },
-}
-```
-
-A Verifier processing the VC checks the revocation status of the credential
-using the following steps:
-
-1. Fetch the status list credential from URL in the `statusListCredential` field
-   of the `credentialStatus` object.
-
-1. Verify that the credential meets the criteria above.
-
-1. Verify the signature and expiration status of the status list credential.
-
-1. Perform the "Validate Algorithm" defined in [@StatusList2021].
-
-If the final step returns `true`, then the Verifier MUST regard the certificate
-as suspended or revoked (depending on the `statusPurpose`).  In either case, the
-Verifier MUST reject the credential.  If any step fails, then the Verifier
-SHOULD reject the credential.
-
 
 # Verifiable Credential Issuance
 
@@ -473,7 +335,7 @@ the OP's support for OIDC VCs and ensure interoperability:
   deferred.  The response MUST contain the following values:
   * `format`: `"jwt_vc"`
   * `credential`: An OIDC VC as described in
-    [](#openid-connect-verifiable-credential-format).  The `sub` value of this
+    (#openid-connect-verifiable-credential-format).  The `sub` value of this
     VC MUST be the JWK Thumbprint URI for the public key in the `jwk` header
     parameter of the proof JWT in the request.
 
@@ -485,6 +347,167 @@ the OP's support for OIDC VCs and ensure interoperability:
 * Credential priming request / response
 * Credential request / response
 
+Below is a non-normative example of a `proof` parameter (line breaks for display purposes only):
+
+```json
+{
+  "proof_type": "jwt",
+  "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxYzI3NmUxMmVjMjEva2V5cy8
+  xIiwiYWxnIjoiRVMyNTYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJzNkJoZFJrcXQzIiwiYXVkIjoiaHR
+  0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJpYXQiOiIyMDE4LTA5LTE0VDIxOjE5OjEwWiIsIm5vbm
+  NlIjoidFppZ25zbkZicCJ9.ewdkIkPV50iOeBUqMXCC_aZKPxgihac0aW9EkL1nOzM"
+  }
+```
+
+where the JWT looks like this:
+
+```json
+{
+  "alg": "ES256",
+  "kid":"did:example:ebfeb1f712ebc6f1c276e12ec21/keys/1"
+}.
+{
+  "iss": "s6BhdRkqt3",
+  "aud": "https://server.example.com",
+  "iat": 1659145924,
+  "nonce": "tZignsnFbp"
+}
+```
+
+Below is a non-normative example of a Credential Request:
+
+```
+POST /credential HTTP/1.1
+Host: server.example.com
+Content-Type: application/json
+Authorization: BEARER czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+{
+  "type": "https://did.example.org/KeyBinding"
+  "format": "ldp_vc",
+  "proof": {
+    "proof_type": "jwt",
+    "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxYzI3NmUxMmVjMjEva2V5cy8
+    xIiwiYWxnIjoiRVMyNTYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJzNkJoZFJrcXQzIiwiYXVkIjoiaHR
+    0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJpYXQiOiIyMDE4LTA5LTE0VDIxOjE5OjEwWiIsIm5vbm
+    NlIjoidFppZ25zbkZicCJ9.ewdkIkPV50iOeBUqMXCC_aZKPxgihac0aW9EkL1nOzM"
+  }
+}
+```
+
+xxx What format should the request be done in our case? jwt_vc might be a better option than ldp_vc?
+
+Below is a non-normative example of a Credential Response in a synchronous flow:
+
+```
+HTTP/1.1 200 OK
+  Content-Type: application/json
+  Cache-Control: no-store
+
+{
+  "format": "ldp_vc"
+  "credential" : "LUpixVCWJk0eOt4CXQe1NXK....WZwmhmn9OQp6YxX0a2L",
+  "c_nonce": "fGFF7UkhLa",
+  "c_nonce_expires_in": 86400  
+}
+```
+
+# Verifiable Credential Validation
+
+A Verifier processing an OIDC VC MUST validate it in the following manner:
+
+1. The `alg` value MUST represent a digital signature algorithm supported by the
+   Verifier.  The `alg` value MUST NOT represent a MAC based algorithm such as
+   HS256, HS384, or HS512.
+
+1. If the Verifier has not been provisioned with a public key with which to
+   verify the VC, the Verifier MAY use the `iss` claim to locate the keys using
+   OpenID Connect Discovery [@OpenID.Discovery].  To do this, the Verifier:
+
+    * Sends a Discovery request for the specified Issuer Identifier
+    * Fetches the JWK Set referenced by the `jwks_uri` field in the provider metadata
+    * Identifies the key in the JWK Set corresponding to the `kid` field in the VC
+
+1. The current time MUST be after the time represented in the `nbf` claim (if
+   present) and before the time represented by the `exp` claim.
+
+1. If the `vc` claim has a `credentialStatus` field, the Verifier SHOULD verify
+   the revocation status as described in (#verifiable-credential-revocation).
+   If the credential is suspended or revoked, then it MUST be rejected.
+
+
+# Verifiable Credential Revocation
+
+As described in (#openid-connect-verifiable-credential-format), an OIDC VC may
+contain revocation information using the "StatusList2021" mechanism, which
+provides a concise list of credentials revoked by an OP in a "status list
+credential".  Status list credentials for OIDC VCs MUST meet the following
+requirements, in addition to the requirements of [@StatusList2021]:
+
+* An status list credential MUST be represented as a JWT-formatted VC, as
+  specified in Section 6.3.1 of [@W3C.vc-data-model].  The `alg`, `kid`, and
+  `typ` fields in the JWT header and the `exp`, `iss`, `nbf`, `jti`, and `sub`
+  claims MUST be populated as specified in that section.  The corresponding
+  subfields of the `vc` claim SHOULD be omitted.
+
+* The `iss` claim MUST be equal to the `iss` claim of the credential being
+  validated.
+
+* The `jti` claim, if present, MUST be equal to the `statusListCredential` field
+  of the credential being validated.
+
+* The `vc` claim MUST NOT contain a `credentialStatus` field.
+
+```
+JWT header = {
+  "alg": "ES256",
+  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
+  "typ": "JWT"
+}
+
+JWT payload = {
+  "iss": "https://server.example.com/",
+  "iat": 1617632860,
+  "exp": 1618237660,
+  "jti": "https://server.example.com/credentials/status/3",
+  "sub": "https://server.example.com/status/3#list"
+
+  "vc": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/vc/status-list/2021/v1"
+    ],
+    "type": [
+      "VerifiableCredential",
+      "StatusList2021Credential"
+    ],
+    "credentialSubject": {
+      "type": "StatusList2021",
+      "statusPurpose": "revocation",
+      "encodedList": "H4sIAAAAAAAAA-3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAIC3AYbSVKsAQAAA"
+    },
+  },
+}
+```
+
+A Verifier processing the VC checks the revocation status of the credential
+using the following steps:
+
+1. Fetch the status list credential from URL in the `statusListCredential` field
+   of the `credentialStatus` object.
+
+1. Verify that the credential meets the criteria above.
+
+1. Verify the signature and expiration status of the status list credential.
+
+1. Perform the "Validate Algorithm" defined in [@StatusList2021].
+
+If the final step returns `true`, then the Verifier MUST regard the certificate
+as suspended or revoked (depending on the `statusPurpose`).  In either case, the
+Verifier MUST reject the credential.  If any step fails, then the Verifier
+SHOULD reject the credential.
+
+
 
 # Asynchronous Issuer JWK Set Distribution
 
@@ -493,7 +516,7 @@ credential Issuer (here the OP) and the Verifier is more arms-length.  The
 Verifier only needs to know how to verify signatures from a trusted Issuer.
 
 Verifiers can discover the JWK Set for a given Issuer OP using OpenID Connect
-Discovery, as discussed in [](#verifiable-credential-validation).  However, this
+Discovery, as discussed in (#verifiable-credential-validation).  However, this
 risks introducing a requirement that the Issuer's discovery endpoint be online
 at the time of verification.  In order to avoid such a requirement, this section
 defines a mechanism for an OP to sign its JWK Set to prove its authenticity to

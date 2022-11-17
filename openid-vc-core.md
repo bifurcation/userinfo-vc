@@ -157,26 +157,6 @@ notes on implementing base64url encoding without padding.)
 
 # Use Cases
 
-## Decentralized OpenID-based Login
-
-OpenID Connect is used by many applications for user authentication today.
-By acting as VC Verifiers, these applications could continue to benefit from the
-same OpenID Providers they are integrated today, but with some potential
-improvements.  The OP would issue a VC to a Wallet (a Holder under the user's
-control), and then the application would interact with the Wallet to verify the
-user's identity.
-
-Such a scheme could, for example, mitigate availablity risk: If an OP is offline
-today, then users cannot log in to an application relying on that OP.  In a
-VC-based scheme, the application only needs to talk to the Wallet holding the
-VC.  In many cases, the Wallet is simply software running on the same device as
-the user's browser, so there is effectively no outage risk.
-
-The OpenID Connect VC format defined in this document intentionally reuses
-the claims defined by OpenID Connect.  An application will need to implement a
-presentation protocol in order to receive and verify VCs, but once that is done,
-it should be easy to consume the claims provided by an OpenID Connect VC.
-
 ## End-to-End Identity
 
 Many applications today provide end-to-end encryption, which protects against
@@ -224,7 +204,7 @@ Connect flow:
 1. The RP (Client) sends a request to the OpenID Provider (OP).
 1. The OP authenticates the End-User and obtains authorization.
 1. The OP responds with an ID Token and usually an Access Token.
-1. The RP sends a "priming request" to the OP's credential endpoint.
+1. The RP sends a "priming" request to the OP's credential endpoint.
 1. The OP responds with a nonce to be used in a proof of possession.
 1. The RP sends a JWT proving possession of a private key to the OP's credential
    endpoint.
@@ -236,32 +216,32 @@ Connect flow:
 These steps are illustrated in the following diagram:
 
 ```
-+--------+                                   +--------+    +----------+
-|        |                                   |        |    |          |
-|        |---------(1) AuthN Request-------->|        |    |          |
-|        |                                   |        |    |          |
-|        |  +--------+                       |        |    |          |
-|        |  |        |                       |        |    |          |
-|        |  |  End-  |<--(2) AuthN & AuthZ-->|        |    |          |
-|   RP   |  |  User  |                       |   OP   |    |          |
-|   ==   |  |        |                       |   ==   |    | Verifier |
-| Holder |  +--------+                       | Issuer |    |          |
-|        |                                   |        |    |          |
-|        |<--------(3) AuthN Response--------|        |    |          |
-|        |                                   |        |    |          |
-|        |---------(4) Priming Request------>|        |    |          |
-|        |                                   |        |    |          |
-|        |<--------(5) Priming Response------|        |    |          |
-|        |                                   |        |    |          |
-|        |---------(6) Credential Request--->|        |    |          |
-|        |                                   |        |    |          |
-|        |<--------(7) Credential Response---|        |    |          |
-|        |                                   |        |    |          |
-|        |                                   +--------+    |          |
-|        |                                                 |          |
-|        |<~~~~~~~~(8) Presentation Protocol~~~~~~~~~~~~~~>|          |
-|        |                                                 |          |
-+--------+                                                 +----------+
++--------+                                           +--------+    +----------+
+|        |                                           |        |    |          |
+|        |---------(1) AuthN Request---------------->|        |    |          |
+|        |                                           |        |    |          |
+|        |  +--------+                               |        |    |          |
+|        |  |        |                               |        |    |          |
+|        |  |  End-  |<--(2) AuthN & AuthZ---------->|        |    |          |
+|   RP   |  |  User  |                               |   OP   |    |          |
+|   ==   |  |        |                               |   ==   |    | Verifier |
+| Holder |  +--------+                               | Issuer |    |          |
+|        |                                           |        |    |          |
+|        |<--------(3) AuthN Response----------------|        |    |          |
+|        |                                           |        |    |          |
+|        |---------(4) Credential Request (Priming)->|        |    |          |
+|        |                                           |        |    |          |
+|        |<--------(5) Error Response----------------|        |    |          |
+|        |                                           |        |    |          |
+|        |---------(6) Credential Request----------->|        |    |          |
+|        |                                           |        |    |          |
+|        |<--------(7) Credential Response-----------|        |    |          |
+|        |                                           |        |    |          |
+|        |                                           +--------+    |          |
+|        |                                                         |          |
+|        |<~~~~~~~~(8) Presentation Protoco~~~~~~~~~~~~~~~~~~~~~~~>|          |
+|        |                                                         |          |
++--------+                                                         +----------+
 ```
 
 ## Authentication and Authorization
@@ -292,18 +272,18 @@ Content-Type: application/json
   "format": "jwt_vc"
 }
 
-HTTP/1.1 200 OK
+HTTP/1.1 400 Bad Request
 Content-Type: application/json; charset=utf-8
 
 {
-  "format": "jwt_vc",
+  "error_code": "missing_proof",
   "c_nonce": "qPDhlbqmqPt7wMCAS70dTlpE1O2np_d25MVBPYz9VwNLdL348bQ",
   "c_nonce_expires_in": 3600
 }
 ```
 Figure: A priming request and response.  Note that the `proof` field in the
-request is not populated, and the response provides neither a `credential` field
-nor an `acceptance_token` field. {#fig-priming}
+request is not populated, but the response provides a `c_nonce` field.
+{#fig-priming}
 
 ```
 POST /credential HTTP/1.1
@@ -467,10 +447,6 @@ JSON/JWT syntax for verifiable credentials.  The following restrictions apply:
 
 * The `kid` field in the JWT header MUST be set.
 
-* The `sub` claim MUST be a JWK Thumbprint URL [@!RFC9278], reflecting the public
-  key that the credential subject presented in their credential request (see
-  (#verifiable-credential-issuance)).
-
 * The `iss` claim MUST be set to the Issuer Identifier for the OpenID Provider.
 
 * The `aud` claim MAY be omitted.  If present, it MUST contain the OAuth 2.0
@@ -479,16 +455,22 @@ JSON/JWT syntax for verifiable credentials.  The following restrictions apply:
   will be presented.
 
 * In the `vc` claim, the `@context` field MUST be a JSON array with the
-  following two entries, in order:
+  following single entry:
   * `"https://www.w3.org/2018/credentials/v1"`
-  * `"https://openid.org/connect/vc/v1"`
 
 * In the `vc` claim, the `type` field MUST be a JSON array with the following
   two entries, in order:
   * `"VerifiableCredential"`
   * `"OpenIDCredential"`
 
-* In the `vc` claim, the `credentialSubject` field MUST be a JSON object,
+* In the `vc` claim, the `credentialSubject` field MUST be a JSON object.
+  * The `id` field of this object a MUST be a JWK Thumbprint URL [@!RFC9278],
+    reflecting the public key that the credential subject presented in their
+    credential request (see (#verifiable-credential-issuance)).
+  * The other fields in this object MUST be the exact set of claims that would
+    be returned an a successful UserInfo request authenticated with the access token
+    that was used in the Credential Request.
+
   populated with the same set of claims that a response from the OIDC
   UserInfo endpoint would provide.  In particular, the `sub` claim MUST be
   provided.

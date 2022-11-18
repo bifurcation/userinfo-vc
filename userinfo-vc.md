@@ -210,44 +210,265 @@ Issuance mechanism, and places no constraints on how an OP implements VC
 Issuance for credential types other than `UserInfoCredential`.
 
 
-# UserInfo Credential Type
+# UserInfo Verifiable Credential Type
 
-* `credentialSubject` contains Basic claims (UserInfo claims) + JWK Thumbprint `id`
-* no JSON-LD, JWS signed
-  * it's instead of approach and not in addition to: Constrained structure for other claims (e.g., "iss" instead of "vc.issuer")
-* Example VC
+A UserInfo Verifiable Credential enapsulates the claims that the OP offers via
+the UserInfo endpoint as a Verifiable Credential that can be presented to a
+third-party Verifier.  Having the UserInfo endpoint and the Credential Endpoint
+return the same set of claims allows for the re-use of existing meechanisms for
+negotiating which claims are provided to a client (e.g., the `profile` and
+`email` scopes).  A UserInfo VC is distinguished from other Verifiable
+Credentials by including the `UserInfoCredential` value in its list of types.
 
+A UserInfo Verifiable Credential issued by an OpenID Provider MUST satisfy the
+following requirements:
 
-## Revocation
+* An UserInfo VC MUST be represented as a JWT-formatted VC, as specified in
+  Section 6.3.1 of [@!W3C.vc-data-model].
+  
+    * The `alg`, `kid`, and `typ` fields in the JWT header and the `exp`, `iss`,
+      `nbf`, and `jti` claims MUST be populated as specified in that section.
 
-* SHOULD include revocation info in `credentialStatus`
-* If present, MUST use StatusList2021
-  * [[ constraints on status list credential ]]
-* Example status list credential
+    * The `sub` claim at the top level MUST be omitted. The `id` field in the
+      `credentialSubject` object is used instead, as describe below.
+
+    * The corresponding subfields of the `vc` claim SHOULD be omitted.
+
+* The `kid` field in the JWT header MUST be set to the identifier of the public
+  key in the OP's JWK Set that should be used to verify the credential.
+
+* The `iss` claim MUST be set to the OP's Issuer Identifier.
+
+* The `aud` claim MAY be omitted.  If present, it MUST contain the OAuth 2.0
+  `client_id` of the Client, just as in an OpenID Connect ID Token.  Note that
+  this value represents the Holder of the VC, not the Verifier to whom it will
+  be presented.
+
+* In the `vc` claim, the `@context` field MUST be a JSON array with the
+  following single entry:
+  * `"https://www.w3.org/2018/credentials/v1"`
+
+* In the `vc` claim, the `type` field MUST be a JSON array with the following
+  two entries, in order:
+  * `"VerifiableCredential"`
+  * `"OpenIDCredential"`
+
+* In the `vc` claim, the `credentialSubject` field MUST be a JSON object.
+  * The `id` field of this object a MUST be a JWK Thumbprint URL [@!RFC9278],
+    reflecting the public key that the credential subject presented in their
+    credential request (see (#credential-request)).
+  * The other fields in this object MUST include all of the claims that would
+    be returned an a successful UserInfo request authenticated with the access token
+    that was used in the Credential Request.
+
+* In the `vc` claim, the `credentialStatus` field MAY be populated.  If it is
+  populated, then it MUST meet the requirements of (#revocation-information).
+
+An UserInfo VC is thus a JWT that can be signed and verified in largely the same
+way as the other JWTs produced by OpenID Connect (e.g., ID tokens and signed
+UserInfo responses), but using the VC syntax to present a public key for the
+credential subject in addition to the claims provided by the OP.
+
+The following UserInfo VC would represent the same user as the UserInfo response
+example in [@!OpenID.Core]:
+
+```
+JWT header = {
+  "alg": "ES256",
+  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
+  "typ": "JWT"
+}
+
+JWT payload = {
+  "iss": "https://server.example.com/",
+  "nbf": 1262304000,
+  "exp": 1262908800,
+  "jti": "http://server.example.com/credentials/3732",
+  "vc": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+    ],
+    "type": [
+      "VerifiableCredential",
+      "UserInfoCredential"
+    ],
+    "credentialSubject": {
+      "id": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs",
+      "sub": "248289761001",
+      "name": "Jane Doe",
+      "given_name": "Jane",
+      "family_name": "Doe",
+      "preferred_username": "j.doe",
+      "email": "janedoe@example.com",
+      "picture": "http://example.com/janedoe/me.jpg"
+    },
+    "credentialStatus": {
+      "id": "https://server.example.com/credentials/status/3#94567"
+      "type": "StatusList2021Entry",
+      "statusPurpose": "revocation",
+      "statusListIndex": "94567",
+      "statusListCredential": "https://server.example.com/credentials/status/3"
+    }
+  },
+}
+```
+Figure: The contents of an OpenID Verifiable Credential
+
+## Revocation Information
+
+If present, credential status information in a UserInfo VC MUST use the
+StatusList2021 mechanism [!@StatusList2021].  This mechanism provides a concise
+list of credentials revoked by an OP in a "status list credential". Status list
+credentials for OIDC VCs MUST meet the following requirements, in addition to
+the requirements of [@!StatusList2021]:
+
+* An status list credential MUST be represented as a JWT-formatted VC, as
+  specified in Section 6.3.1 of [@!W3C.vc-data-model].  The `alg`, `kid`, and
+  `typ` fields in the JWT header and the `exp`, `iss`, `nbf`, `jti`, and `sub`
+  claims MUST be populated as specified in that section.  The corresponding
+  subfields of the `vc` claim SHOULD be omitted.
+
+* The `iss` claim MUST be equal to the `iss` claim of the credential being
+  validated.
+
+* The `jti` claim, if present, MUST be equal to the `statusListCredential` field
+  of the credential being validated.
+
+* The `vc` claim MUST NOT contain a `credentialStatus` field.
+
+* The `statusPurpose` value in the `credentialSubject` object MUST be `revocation`.
+  Suspension of UserInfo VCs is not supported.
+
+```
+JWT header = {
+  "alg": "ES256",
+  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
+  "typ": "JWT"
+}
+
+JWT payload = {
+  "iss": "https://server.example.com/",
+  "iat": 1617632860,
+  "exp": 1618237660,
+  "jti": "https://server.example.com/credentials/status/3",
+  "sub": "https://server.example.com/status/3#list"
+
+  "vc": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/vc/status-list/2021/v1"
+    ],
+    "type": [
+      "VerifiableCredential",
+      "StatusList2021Credential"
+    ],
+    "credentialSubject": {
+      "type": "StatusList2021",
+      "statusPurpose": "revocation",
+      "encodedList": "H4sIAAAAAAAAA-3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAIC3AYbSVKsAQAAA"
+    },
+  },
+}
+```
+Figure: A status list credential
+
+## UserInfo Credential Verification
+
+A Verifier processing an OIDC VC MUST validate it using the following steps:
+
+1. Verify that the `alg` value represents an algorithm supported by the
+   Verifier.
+
+1. Obtain a JWK Set for the Issuer from a trusted source.  For example:
+
+    * Obtain and verify a Signed JWK Set (see (#signed-jwk-set))
+    * Extract the OP's Issuer ID from the `iss` claim in the payload of the VC,
+      and use OpenID Connect Discovery [@!OpenID.Discovery]:
+        * Send a Discovery request for the specified Issuer Identifier
+        * Fetch the JWK Set referenced by the `jwks_uri` field in the provider metadata
+        * Identifies the key in the JWK Set corresponding to the `kid` field in the VC
+
+1. Identify a key in the JWK Set that has the same `kid` value as the JWT Header
+   of the UserInfo VC.
+
+1. Use the identified key to verify the signature on the UserInfo VC.
+
+1. Verify that the current time is after the time represented in the `nbf` claim
+   (if present) and before the time represented by the `exp` claim.
+
+1. If the `vc` claim has a `credentialStatus` field, the verify the VC's
+   revocation status as follows:
+    1.  Fetch the status list credential from URL in the `statusListCredential`
+        field of the `credentialStatus` object.
+
+    1. Verify that the credential meets the criteria above.
+
+    1. Verify the signature and expiration status of the status list credential.
+
+    1. Perform the "Validate Algorithm" defined in [@!StatusList2021].
+
+    1. If the final step returns `true`, then the Verifier MUST reject the
+       certificate as revoked (depending on the `statusPurpose`).
+
+    1. If any step in revocation status checking fails, then the Verifier SHOULD
+       reject the credential.
 
 
 # Profile of OpenID for VC Issuance
 
-* Wallet-initiated, authorized code flow MUST be supported
-KY: What about pre-authorized code flow
-* Optional endpoints in OpenID4VCI are also optional here
-  * Issuance Initiation Endpoint
-  * Batch Credential Endpoint
-  * Deferred Credential Endpoint
+An OP implementing this specification MUST support OpenID for Verifiable
+Credential Issuance [@!OpenID4VCI], supporting at least profile defined
+in this section.  The Wallet-initiated, authorized code flow MUST be supported,
+since this corresponds to the most common usage pattern for OpenID Connect.
 
+Endpoints that are optional in the general OpenID for Verifiable Credential
+Issuance specification are also optional here.
+
+The remainder of this section specifies additional requirements that specify a
+single, interoperable flow for issuing UserInfo VCs.
+
+## Server Metadata
+
+The server's metadata MUST have a `supportedCredentials` entry for the format
+`jwt_vc_json`, with the following properties:
+
+  * `cryptographic_binding_methods_supported` MUST include `jwk`
+  * `types` MUST include `UserInfoCredential`
+
+A non-normative example server metadata object is shown below:
+
+```
+[[ TODO ]]
+```
 
 ## Authorization Endpoint
 
-* MUST support `userinfo_credential` scope
-* Example authorization request
+A Client requests authorization to issue UserInfo VCs by including the scope
+value `userinfo_credential` in its authorization request.  The OP MUST support
+this scope value.
 
+A non-normative example authorization request is shown below:
+
+```
+[[ TODO ]]
+```
 
 ## Token Endpoint
 
-* No chage [[ would like to say MUST send `c_nonce`, might not be feasible? ]]
-KY: `c_nonce` is optional 
-* Example token request / response
+If the Client has been granted the `userinfo_credential` scope, then the Token
+Response MUST include an `access_token` value that can be used to access the
+Credential Endpoint.
 
+The Token Response SHOULD include `c_nonce` and `c_nonce_expires_in` fields.
+This avoids the need for a client to make an additional request to the
+Credential Endpoint to obtain a nonce.
+
+
+A non-normative example token request and response are shown below:
+
+```
+[[ TODO ]]
+```
 
 ## Credential Endpoint
 
@@ -280,14 +501,9 @@ no HMAC for jwt proof. -> core VCI spec
   * Send a "priming request" with only `format` and `types`
   * Expect to get back a 400 of type `missing_proof` containing a nonce
 
-## Server Metadata
-
-* MUST have a supportedCredentials entry for format `jwt_vc_json`, with the following properties:
-  * `cryptographic_binding_methods_supported` MUST include `jwk`
-  * `cryptographic_suites_supported` MUST NOT include MAC-based algorithms or `none`
-  * `types` MUST include `UserInfoCredential`
-
 # Signed JWK Sets
+
+TODO
 
 # Security Considerations {#security-considerations}
 

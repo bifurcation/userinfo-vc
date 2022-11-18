@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-DRAFT=openid-vc-core
+DRAFT=userinfo-vc
 
 all: ${DRAFT}.html
 

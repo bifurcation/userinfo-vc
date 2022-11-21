@@ -102,6 +102,7 @@ Together, these interfaces allow the issuance of Verifiable Credentials
 containing OpenID Connect claims with the same degree of simplicity and
 interoperability as OpenID Connect itself.
 
+
 # Overview
 
 Since this specification is mainly a profile of OpenID for Verifiable Credential
@@ -195,6 +196,7 @@ a UserInfo Verifiable Credential:
 Figure: Issuance, presentation, and verification of a UserInfo credential
 {#fig-overview}
 
+
 # Out of Scope
 
 The focus of this specification is on the Verifiable Credential issuance
@@ -205,8 +207,8 @@ standard presentation protocol such as OpenID for Verifiable Presentations
 proof-of-possession mechanics, such as MLS or TLS [@!I-D.ietf-mls-protocol]
 [@!RFC8446].
 
-This specification is intended as a minimal profile of the more general VC
-Issuance mechanism, and places no constraints on how an OP implements VC
+This specification is intended as a minimal profile of the more general OpenID
+for VC Issuance mechanism, and places no constraints on how an OP implements VC
 Issuance for credential types other than `UserInfoCredential`.
 
 
@@ -314,6 +316,7 @@ JWT payload = {
 ```
 Figure: The contents of an OpenID Verifiable Credential
 
+
 ## Revocation Information
 
 If present, credential status information in a UserInfo VC MUST use the
@@ -338,6 +341,7 @@ the requirements of [@!StatusList2021]:
 
 * The `statusPurpose` value in the `credentialSubject` object MUST be `revocation`.
   Suspension of UserInfo VCs is not supported.
+
 
 ```
 JWT header = {
@@ -372,6 +376,7 @@ JWT payload = {
 ```
 Figure: A status list credential
 
+
 ## UserInfo Credential Verification
 
 A Verifier processing an OIDC VC MUST validate it using the following steps:
@@ -381,7 +386,7 @@ A Verifier processing an OIDC VC MUST validate it using the following steps:
 
 1. Obtain a JWK Set for the Issuer from a trusted source.  For example:
 
-    * Obtain and verify a Signed JWK Set (see (#signed-jwk-set))
+    * Obtain and verify a Signed JWK Set (see (#signed-openid-provider-jwk-sets))
     * Extract the OP's Issuer ID from the `iss` claim in the payload of the VC,
       and use OpenID Connect Discovery [@!OpenID.Discovery]:
         * Send a Discovery request for the specified Issuer Identifier
@@ -427,6 +432,7 @@ Issuance specification are also optional here.
 The remainder of this section specifies additional requirements that specify a
 single, interoperable flow for issuing UserInfo VCs.
 
+
 ## Server Metadata
 
 The server's metadata MUST have a `supportedCredentials` entry for the format
@@ -441,6 +447,7 @@ A non-normative example server metadata object is shown below:
 [[ TODO ]]
 ```
 
+
 ## Authorization Endpoint
 
 A Client requests authorization to issue UserInfo VCs by including the scope
@@ -453,6 +460,7 @@ A non-normative example authorization request is shown below:
 [[ TODO ]]
 ```
 
+
 ## Token Endpoint
 
 If the Client has been granted the `userinfo_credential` scope, then the Token
@@ -463,47 +471,153 @@ The Token Response SHOULD include `c_nonce` and `c_nonce_expires_in` fields.
 This avoids the need for a client to make an additional request to the
 Credential Endpoint to obtain a nonce.
 
-
 A non-normative example token request and response are shown below:
 
 ```
 [[ TODO ]]
 ```
 
+
 ## Credential Endpoint
 
 ### Credential Request
 
-* MUST support the following:
-  * `"format": "jwt_vc_json"`
-  * `"types": ["VerifiableCredential", "UserInfoCredential"]`
-  * `"proof": /* JWT with subject public key in "jwk"*/`
-* When issuing UserInfoCredential:
-  * Proof of possession MUST be provided; "jwk" proof type MUST be supported
-* Example credential request
+Consistent with the metadata requirements in (#server-metadata), the OP's
+Credential Endpoint MUST support Credential Requests with `format` field set to
+`jwt_vc_json`, and a `type` field set to an array including
+`VerifiableCredential` and `UserCredential`.  For such requests, the OP MUST
+require the client to prove possession of a private key.  The OP MUST support
+the `jwt` proof type, with the client's public key presented in the `jwk` header
+field in the proof JWT.
+
+A non-normative example credential request is shown below:
+
+```
+[[ TODO ]]
+```
+
+The content of the `proof` JWT is as follows:
+
+```
+[[ TODO ]]
+```
+
 
 ### Credential Response
 
-* No change
-* Example response
+A successful Credential Response to a Credential Request for a UserInfo VC MUST
+contain a `credential` field.  Deferred credential issuance MUST NOT be used.
 
-## Cryptosuite
+A non-normative example credential response is shown below:
 
-MTI?
-no HMAC for jwt proof. -> core VCI spec
+```
+[[ TODO ]]
+```
 
-### Server-Provided Nonces
 
-* [[ non-normative, just helpful notes for clients ]]
-* Clients will need a nonce to compute the proof to go in the credential request
-* These come from token response, credential response, or error response
-* If a client needs to make a credential request and does not have a nonce:
-  * Send a "priming request" with only `format` and `types`
-  * Expect to get back a 400 of type `missing_proof` containing a nonce
+### Priming Requests
 
-# Signed JWK Sets
+The OP's Credential Endpoint MUST also support "priming" requests, in which the
+`format` field is set to `jwt_vc_json`, and a `type` field set to an array
+including `VerifiableCredential` and `UserCredential`, but no `proof` field is
+provided. 
 
-TODO
+The response to such requests MUST be a standard credential error response with
+status code 400 and `error_code` set to `missing_proof`.  `c_nonce` and
+`c_nonce_expires_in` fields MUST be provided.
+
+Priming requests are used by clients to obtain a fresh nonce, e.g., when one is
+not provided by the token endpoint.
+
+
+## Client Nonce Handling
+
+This section is non-normative.
+
+Because of the requirement for proof of possession, clients will need to have a
+fresh nonce before they can successfully request a credential.  The OP can
+provide that nonce either in a successful Token Response or in a success or
+error response from the Credential Endpoint. 
+
+When a client receives a nonce via any of these channels, it should store the
+nonce and use to construct a proof in the next credential request it makes.
+Each nonce should only be used once.  Expired nonces should be deleted.
+
+If a client wishes to make a Credential Request and does not have a nonce
+(e.g., because all of its nonces expired), then it should send a priming
+request of the form described in (#priming-requests).  The response to this
+request will be an error response, but will contain a nonce that can be used to
+construct a proof for a credential request.
+
+
+# Signed OpenID Provider JWK Sets
+
+One benefit of verifiable credentials is a looser coupling between the
+credential Issuer (here the OP) and the Verifier.  The Verifier only needs to
+know how to verify signatures from a trusted Issuer; the Issuer need know
+nothing about the Verifier.
+
+Verifiers can discover the JWK Set for a given Issuer OP using OpenID Connect
+Discovery [!@OpenID.Discovery].  However, this risks introducing a requirement
+that the Issuer's discovery endpoint be online at the time of verification.  In
+order to avoid such a requirement, this section defines a mechanism for an OP to
+sign its JWK Set to prove its authenticity to verifiers.  Such a signed JWK Set
+can be provided to a Verifier by an untrusted party (for example, the party
+presenting a credential), not just the OP.
+
+A Verifier requests a signed JWK Set by sending an HTTP GET request to the OP's
+JWKS URL with the value `application/jwt` in the HTTP `Accept` header field.
+
+An OP provides a signed JWK Set in a response to such a request by sending a
+response containing a JWT of the following form:
+
+* The `x5c` field of the JWT header MUST be populated with a certificate chain
+  that authenticates the domain name in the OP's Issuer Identifier.  The host
+  name in the Issuer Identifier MUST appear as a `dNSName` entry in the
+  `subjectAltName` extension of the end-entity certificate.
+
+* The `alg` field of the JWT header MUST represent an algorithm that is
+  compatible with the subject public key of the certificate in the `x5c`
+  parameter.
+
+* The `iss` claim of the JWT MUST contain the OP's Issuer ID.
+
+* The JWT SHOULD NOT contain an `aud` claim.
+
+* The JWT MUST contain an `exp` claim.
+
+* The JWT MUST conatin a `jwks` claim, whose value is the OP's JWK Set.
+
+A non-normative example of a request and response for a Signed JWK Set is shown
+below:
+
+```
+GET /jwks HTTP/1.1
+Host: server.example.com
+Accept: application/jwt
+
+HTTP/1.1 200 OK
+Content-Type: application/jose
+
+[[ TODO example signed JWK set ]]
+```
+
+A Verifier that receives such a signed JWK Set validates it by taking the
+folloinwg steps:
+
+1. If this Signed JWK Set was looked up using an Issuer ID, verify that the
+   Issuer ID in the `iss` claim is identical to the one used to discover it.
+
+1. Verify that the JWT has not expired, according to its `exp` claim.
+
+1. Verify that the certificate chain in the `x5c` field is valid from a trusted
+   certificate authority (see [!@RFC5280][!@RFC6125]).
+
+1. Verify that the end-entity certificate matches the Issuer ID.
+
+1. Verify the signature on the JWS using the subject public key of the
+   end-entity certificate
+
 
 # Security Considerations {#security-considerations}
 
@@ -543,7 +657,19 @@ as a Verifier when authenticating other participants in a session.
 
 ## OpenID for Verifiable Presentations
 
-[[ TODO ]]
+The OpenID for Verifiable Presentations specification defines a general
+mechanism by which OpenID mechanisms are used to implement the VC presentation
+interaction between a Holder and a Verifier.  Through this interaction, a Holder
+presents one or more credentials to a Verifier and proves that the Holder is the
+legitimate subject of those credentials.  As a result, the Verifier can
+associate the attributes in the credentials with the Holder.
+
+UserInfo VC are a specific type of Verifiable Credential, so they can be used in
+this protocol to present OpenID claims to a Verifier.  For example, a UserInfo
+VC containing a `email` claim could tell the Verifier that the Holder
+legitimately represents that email address (assuming the Verifier trusts the OP
+to make such claims).
+
 
 <reference anchor="StatusList2021" target="https://www.w3.org/TR/vc-data-model">
   <front>

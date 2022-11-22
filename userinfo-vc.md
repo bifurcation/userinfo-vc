@@ -256,9 +256,10 @@ following requirements:
   * `"OpenIDCredential"`
 
 * In the `vc` claim, the `credentialSubject` field MUST be a JSON object.
-  * The `id` field of this object a MUST be a JWK Thumbprint URL [@!RFC9278],
-    reflecting the public key that the credential subject presented in their
-    credential request (see (#credential-request)).
+  * The `id` field of this object a MUST be a Decentralized Identifier with DID
+    method `jwk` [@!W3C did-core][@!W3C.did-spec-registries], reflecting the
+    public key that the credential subject presented in their credential request
+    (see (#credential-request)).
   * The other fields in this object MUST include all of the claims that would
     be returned an a successful UserInfo request authenticated with the access token
     that was used in the Credential Request.

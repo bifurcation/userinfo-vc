@@ -257,7 +257,7 @@ following requirements:
 
 * In the `vc` claim, the `credentialSubject` field MUST be a JSON object.
   * The `id` field of this object a MUST be a Decentralized Identifier with DID
-    method `jwk` [@!W3C did-core][@!W3C.did-spec-registries], reflecting the
+    method `jwk` [@!W3C.did-core] [@!W3C.did-spec-registries], reflecting the
     public key that the credential subject presented in their credential request
     (see (#credential-request)).
   * The other fields in this object MUST include all of the claims that would

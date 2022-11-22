@@ -271,39 +271,40 @@ way as the other JWTs produced by OpenID Connect (e.g., ID tokens and signed
 UserInfo responses), but using the VC syntax to present a public key for the
 credential subject in addition to the claims provided by the OP.
 
-The following UserInfo VC would represent the same user as the UserInfo response
-example in [@!OpenID.Core]:
+A non-normative example of a UserInfo VC is shown below:
 
 ```
-JWT header = {
+JWT Header:
+{
   "alg": "ES256",
-  "kid": "50615383-48AA-454D-B1E8-8721FBB7D7D1",
-  "typ": "JWT"
+  "typ": "JWT",
+  "kid": "XTSGmh734_J6fOWUbI7BNim7wyvj5LWx8GzuIH7WHw8"
 }
 
-JWT payload = {
-  "iss": "https://server.example.com/",
-  "nbf": 1262304000,
-  "exp": 1262908800,
-  "jti": "http://server.example.com/credentials/3732",
+JWT Payload:
+{
   "vc": {
     "@context": [
-      "https://www.w3.org/2018/credentials/v1",
+      "https://www.w3.org/2018/credentials/v1"
     ],
     "type": [
       "VerifiableCredential",
       "UserInfoCredential"
     ],
     "credentialSubject": {
-      "id": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs",
+      "id": "did:jwk:eyJrdHkiOiJFQyIsInVzZSI6InNpZyIsImNydiI6IlAtMjU2Iiwi
+             eCI6InFpR0tMd1hSSm1KUl9BT1FwV09IWExYNXVZSWZ6dlB3RHVyV3ZtWkJ3
+             dnciLCJ5IjoiaXA4bnl1THBKNU5wcmlaekNWS2lHMFR0ZXFQTWtyemZOT1VR
+             OFl6ZUdkayIsImFsZyI6IkVTMjU2In0",
       "sub": "248289761001",
       "name": "Jane Doe",
       "given_name": "Jane",
       "family_name": "Doe",
       "preferred_username": "j.doe",
       "email": "janedoe@example.com",
-      "picture": "http://example.com/janedoe/me.jpg"
-    },
+      "picture": "http://example.com/janedoe/me.jpg",
+      "phone_number": "+1 202 555 1212"
+    }
     "credentialStatus": {
       "id": "https://server.example.com/credentials/status/3#94567"
       "type": "StatusList2021Entry",
@@ -312,6 +313,9 @@ JWT payload = {
       "statusListCredential": "https://server.example.com/credentials/status/3"
     }
   },
+  "iat": 1667575982,
+  "exp": 1668180782,
+  "iss": "https://server.example.com"
 }
 ```
 Figure: The contents of an OpenID Verifiable Credential
@@ -438,13 +442,30 @@ single, interoperable flow for issuing UserInfo VCs.
 The server's metadata MUST have a `supportedCredentials` entry for the format
 `jwt_vc_json`, with the following properties:
 
-  * `cryptographic_binding_methods_supported` MUST include `jwk`
-  * `types` MUST include `UserInfoCredential`
+  * `cryptographic_suites_supported` MUST be present.
+  * `cryptographic_binding_methods_supported` MUST be present and MUST include `jwk`.
+  * `types` MUST include the values `VerifiableCredential` and `UserInfoCredential`.
 
 A non-normative example server metadata object is shown below:
 
 ```
-[[ TODO ]]
+{
+  // ... other server metadata fields ...
+  "credential_endpoint": "https://server.example.com/connect/credential",
+  "credentials_supported": [{
+    "format": "jwt_vc_json",
+    "types": [
+        "VerifiableCredential",
+        "UserInfoCredential"
+    ],
+    "cryptographic_binding_methods_supported": [
+        "jwk"
+    ],
+    "cryptographic_suites_supported": [
+        "ES256"
+    ],
+  }]
+}
 ```
 
 
@@ -457,7 +478,12 @@ this scope value.
 A non-normative example authorization request is shown below:
 
 ```
-[[ TODO ]]
+GET /auth?client_id=C6pfRp679ez9HvDhg3TgI
+   &scope=openid%20email%20profile%20userinfo_credential
+   &response_type=code
+   &redirect_uri=https%3A%2F%2Foidc-client.invalid%3A4000%2Fcb
+   &code_challenge=7slr54gqLAj4gAc_FHYo9xx9pcFrACc-DSyofu7SjMk
+   &code_challenge_method=S256 HTTP/1.1
 ```
 
 
@@ -474,8 +500,37 @@ Credential Endpoint to obtain a nonce.
 A non-normative example token request and response are shown below:
 
 ```
-[[ TODO ]]
+POST /token HTTP/1.1
+Accept: application/json
+Authorization: Basic /* base64(client_id + ':' + client_secret)*/
+
+grant_type=authorization_code
+&code=L8_66PBAv_nIO4LsXCW1mj2P9M2j5J8MXBQQxdQW6mC
+&redirect_uri=https%3A%2F%2Foidc-client.invalid%3A4000%2Fcb
+&code_verifier=aipxCdREzMCkTnBZVjLUG8mHNSXErrfQ9P6YqzT5hfU
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+  "access_token": "S_-WDgsXG8s3V7qrTbI3kZHf4mIcTByLPU2Rd5FoDib",
+  "expires_in": 3600,
+  "id_token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjFQVzVyT3pDWTNI
+               RFIzb2FvX3ZsSTBDY2JEN1J2WXVCTFJjdEJtZ24wQWsifQ.eyJzdWIiOiJiY
+               WNrZW5kLjExMzMwNDE4ODMwNjI2NzA4NzMyNCIsImF0X2hhc2giOiItNkhkZ
+               EU5aE1TQnNFSlFtS2tjdERRIiwiYXVkIjoiQzZwZlJwNjc5ZXo5SHZEaGczV
+               GdJIiwiZXhwIjoxNjY3NTc4MTYxLCJpYXQiOjE2Njc1NzQ1NjEsImlzcyI6I
+               mh0dHBzOi8vbG9jYWxob3N0OjMwMDAifQ.IJfXA64d--xEt-TATIZnFLdSMd
+               H6LZu_glRAGw_qLFyQ8kXnxlNFeMGQqQ2PSA6vtO9zDyH3CHzJSfEAHYUQ2Q",
+  "scope": "openid email profile userinfo_credential",
+  "c_nonce": "N7cbtWrD1Uoq3TOxS87QiQ",
+  "c_nonce_expires_in": "86400",
+}
 ```
+
+Note that the `id_token` field is included here because this is an OpenID
+Connect token request.  It is not necessary for VC issuance, but may be used by
+the Client in the same way as an ID token normally would be.
 
 
 ## Credential Endpoint
@@ -493,13 +548,55 @@ field in the proof JWT.
 A non-normative example credential request is shown below:
 
 ```
-[[ TODO ]]
-```
+POST /credential HTTP/1.1
+Authorization: Bearer S_-WDgsXG8s3V7qrTbI3kZHf4mIcTByLPU2Rd5FoDib
+Content-Type: application/json
+
+{
+  "format": "jwt_vc_json"
+  "type": ["VerifiableCredential", "UserInfoCredential"],
+  "proof": {
+    "proof_type": "jwt",
+    "jwt": "eyJhbGciOiJFUzI1NiIsImp3ayI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2
+            IiwieCI6InFpR0tMd1hSSm1KUl9BT1FwV09IWExYNXVZSWZ6dlB3RHVyV3Zt
+            WkJ3dnciLCJ5IjoiaXA4bnl1THBKNU5wcmlaekNWS2lHMFR0ZXFQTWtyemZO
+            T1VROFl6ZUdkayIsImFsZyI6IkVTMjU2In19.eyJhdGgiOiJHVXF5LWpySFV
+            Rdll3QXkwQXZ4RGRtOTYweVYxdXJCZWExejl4UGo1UGZvIiwiaXNzIjoiYk9
+            4OFI0NFhoSUhpM0E5NjV6QkVuIiwiYXVkIjoiaHR0cHM6Ly9zZXJ2ZXIuZXh
+            hbXBsZS5jb20iLCJub25jZSI6Ik43Y2J0V3JEMVVvcTNUT3hTODdRaVEiLCJ
+            pYXQiOjE2Njc1NzU5ODIsImp0aSI6IlhGbHpQWEFmSWxYR3ExMHFZRmVUejh
+            Zak5EbjhSUzNwRHMzZVJPVlJ4VkUifQ.NRHs_6_j1SR45FQJpdapyxAYSJch
+            qnOFiRSbsicfhNWFppbWwOxvkpDPhfxb9a1Usxi7kmUnPEpV278QkiddHw"
+
+  }
+}```
 
 The content of the `proof` JWT is as follows:
 
 ```
-[[ TODO ]]
+JWT Header:
+{
+  "alg": "ES256",
+  "jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "qiGKLwXRJmJR_AOQpWOHXLX5uYIfzvPwDurWvmZBwvw",
+    "y": "ip8nyuLpJ5NpriZzCVKiG0TteqPMkrzfNOUQ8YzeGdk",
+    "alg": "ES256"
+  }
+}
+
+JWT Payload:
+
+```
+{
+  "ath": "GUqy-jrHUQvYwAy0AvxDdm960yV1urBea1z9xPj5Pfo",
+  "iss": "bOx8R44XhIHi3A965zBEn",
+  "aud": "https://server.example.com",
+  "nonce": "N7cbtWrD1Uoq3TOxS87QiQ",
+  "iat": 1667575982,
+  "jti": "XFlzPXAfIlXGq10qYFeTz8YjNDn8RS3pDs3eROVRxVE"
+}
 ```
 
 
@@ -511,7 +608,71 @@ contain a `credential` field.  Deferred credential issuance MUST NOT be used.
 A non-normative example credential response is shown below:
 
 ```
-[[ TODO ]]
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+  "format": "jwt_vc_json",
+  "credential": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlhUU0dtaDczNF9K
+                 NmZPV1ViSTdCTmltN3d5dmo1TFd4OEd6dUlIN1dIdzgifQ.eyJ2YyI6eyJAY
+                 29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFsc
+                 y92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVDcmVkZW50aWFsIiwiVXNlckluZ
+                 m9DcmVkZW50aWFsIl0sImNyZWRlbnRpYWxTdWJqZWN0Ijp7ImlkIjoiZGlkO
+                 mp3azpleUpyZEhraU9pSkZReUlzSW5WelpTSTZJbk5wWnlJc0ltTnlkaUk2S
+                 WxBdE1qVTJJaXdpZUNJNkluRnBSMHRNZDFoU1NtMUtVbDlCVDFGd1YwOUlXR
+                 XhZTlhWWlNXWjZkbEIzUkhWeVYzWnRXa0ozZG5jaUxDSjVJam9pYVhBNGJub
+                 DFUSEJLTlU1d2NtbGFla05XUzJsSE1GUjBaWEZRVFd0eWVtWk9UMVZST0ZsN
+                 lpVZGtheUlzSW1Gc1p5STZJa1ZUTWpVMkluMCIsInN1YiI6IjI0ODI4OTc2M
+                 TAwMSIsIm5hbWUiOiJKYW5lIERvZSIsImdpdmVuX25hbWUiOiJKYW5lIiwiZ
+                 mFtaWx5X25hbWUiOiJEb2UiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJqLmRvZ
+                 SIsImVtYWlsIjoiamFuZWRvZUBleGFtcGxlLmNvbSIsInBpY3R1cmUiOiJod
+                 HRwOi8vZXhhbXBsZS5jb20vamFuZWRvZS9tZS5qcGciLCJwaG9uZV9udW1iZ
+                 XIiOiIrMSAyMDIgNTU1IDEyMTIifX0sImlhdCI6MTY2NzU3NTk4MiwiZXhwI
+                 joxNjY4MTgwNzgyLCJpc3MiOiJodHRwczovL3NlcnZlci5leGFtcGxlLmNvb
+                 SJ9.4kg6Pi8Xz8B85qUiXkEVlTRQpfqUpr725ZIq0YMx1yMIgE7otkTvXdAp
+                 pbMHbLbO9-nItJHLd7x-WR5g8rqksQ"
+}
+```
+
+The contents of the credential in the example are as follows:
+
+```
+JWT Header:
+{
+  "alg": "ES256",
+  "typ": "JWT",
+  "kid": "XTSGmh734_J6fOWUbI7BNim7wyvj5LWx8GzuIH7WHw8"
+}
+
+JWT Payload:
+{
+  "vc": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1"
+    ],
+    "type": [
+      "VerifiableCredential",
+      "UserInfoCredential"
+    ],
+    "credentialSubject": {
+      "id": "did:jwk:eyJrdHkiOiJFQyIsInVzZSI6InNpZyIsImNydiI6IlAtMjU2Iiwi
+             eCI6InFpR0tMd1hSSm1KUl9BT1FwV09IWExYNXVZSWZ6dlB3RHVyV3ZtWkJ3
+             dnciLCJ5IjoiaXA4bnl1THBKNU5wcmlaekNWS2lHMFR0ZXFQTWtyemZOT1VR
+             OFl6ZUdkayIsImFsZyI6IkVTMjU2In0",
+      "sub": "248289761001",
+      "name": "Jane Doe",
+      "given_name": "Jane",
+      "family_name": "Doe",
+      "preferred_username": "j.doe",
+      "email": "janedoe@example.com",
+      "picture": "http://example.com/janedoe/me.jpg",
+      "phone_number": "+1 202 555 1212"
+    }
+  },
+  "iat": 1667575982,
+  "exp": 1668180782,
+  "iss": "https://server.example.com"
+}
 ```
 
 
@@ -528,6 +689,28 @@ status code 400 and `error_code` set to `missing_proof`.  `c_nonce` and
 
 Priming requests are used by clients to obtain a fresh nonce, e.g., when one is
 not provided by the token endpoint.
+
+An non-normative example priming request and error response are shown below:
+
+```
+POST /credential HTTP/1.1
+Authorization: Bearer S_-WDgsXG8s3V7qrTbI3kZHf4mIcTByLPU2Rd5FoDib
+Content-Type: application/json
+
+{
+  "format": "jwt_vc_json"
+  "type": ["VerifiableCredential", "UserInfoCredential"],
+}
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+  "format": "jwt_vc",
+  "c_nonce": "7mVx0A6QRgYPlXC0SkEtNw",
+  "c_nonce_expires_in": 86400
+}
+```
 
 
 ## Client Nonce Handling
@@ -599,7 +782,66 @@ Accept: application/jwt
 HTTP/1.1 200 OK
 Content-Type: application/jose
 
-[[ TODO example signed JWK set ]]
+eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsIng1YyI6WyJNSUlDNXpDQ0Fs
+QUNBUUV3RFFZSktvWklodmNOQVFFRkJRQXdnYnN4SkRBaUJnTlZCQWNURzFa
+aGJHbERaWEowSUZaaGJHbGtZWFJwYjI0Z1RtVjBkMjl5YXpFWE1CVUdBMVVF
+Q2hNT1ZtRnNhVU5sY25Rc0lFbHVZeTR4TlRBekJnTlZCQXNUTEZaaGJHbERa
+WEowSUVOc1lYTnpJRElnVUc5c2FXTjVJRlpoYkdsa1lYUnBiMjRnUVhWMGFH
+OXlhWFI1TVNFd0h3WURWUVFERXhob2RIUndPaTh2ZDNkM0xuWmhiR2xqWlhK
+MExtTnZiUzh4SURBZUJna3Foa2lHOXcwQkNRRVdFV2x1Wm05QWRtRnNhV05s
+Y25RdVkyOXRNQjRYRFRrNU1EWXlOakF3TVRrMU5Gb1hEVEU1TURZeU5qQXdN
+VGsxTkZvd2dic3hKREFpQmdOVkJBY1RHMVpoYkdsRFpYSjBJRlpoYkdsa1lY
+UnBiMjRnVG1WMGQyOXlhekVYTUJVR0ExVUVDaE1PVm1Gc2FVTmxjblFzSUVs
+dVl5NHhOVEF6QmdOVkJBc1RMRlpoYkdsRFpYSjBJRU5zWVhOeklESWdVRzlz
+YVdONUlGWmhiR2xrWVhScGIyNGdRWFYwYUc5eWFYUjVNU0V3SHdZRFZRUURF
+eGhvZEhSd09pOHZkM2QzTG5aaGJHbGpaWEowTG1OdmJTOHhJREFlQmdrcWhr
+aUc5dzBCQ1FFV0VXbHVabTlBZG1Gc2FXTmxjblF1WTI5dE1JR2ZNQTBHQ1Nx
+R1NJYjNEUUVCQVFVQUE0R05BRENCaVFLQmdRRE9PbkhLNWF2SVdaSlYxNnZZ
+ZEE3NTd0bjJWVWRaWlVjT0JWWGM2NWcyUEZ4VFhkTXd6empzdlVHSjdTVkND
+U1JyQ2w2emZOMVNMVXptMU5aOVdsbXBaZFJKRXkwa1RSeFFiN1hCaFZRNy9u
+SGswMXhDK1lEZ2tSb0tXemsyWi9NL1ZYd2JQN1JmWkhNMDQ3UVN2NGRrK05v
+Uy96Y253Yk5EdSs5N2JpNXA5d0lEQVFBQk1BMEdDU3FHU0liM0RRRUJCUVVB
+QTRHQkFEdC9VRzl2VUpTWlNXSTRPQjlMK0tYSVBxZUNnZllyeCtqRnp1ZzZF
+SUxMR0FDT1RiMm9XSCtoZVFDMXUrbU5yMEhaRHpUdUlZRVpvREpKS1BURWps
+YlZValA5VU5WK21Xd0Q1TWxNL010c3EyYXpTaUdNNWJVTU1qNFFzc3hzb2R5
+YW1Fd0NXL1BPdVo2bGNnNUt0ejg4NWhabytMN3RkRXk4VzlWaUgwUGQiXX0.
+eyJpYXQiOjE2Njc1NzU5ODIsImV4cCI6MTY2ODE4MDc4MiwiaXNzIjoiaHR0
+cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJqd2tzIjp7ImtleXMiOlt7Imt0
+eSI6IkVDIiwiY3J2IjoiUC0yNTYiLCJhbGciOiJFUzI1NiIsImtpZCI6IlhU
+U0dtaDczNF9KNmZPV1ViSTdCTmltN3d5dmo1TFd4OEd6dUlIN1dIdzgiLCJ4
+IjoicWlHS0x3WFJKbUpSX0FPUXBXT0hYTFg1dVlJZnp2UHdEdXJXdm1aQnd2
+dyIsInkiOiJpcDhueXVMcEo1TnByaVp6Q1ZLaUcwVHRlcVBNa3J6Zk5PVVE4
+WXplR2RrIn1dfX0.w32l5L84A6OVo-_pFKI3eWYExpNDAWdwOuyw9LDQo2Kh
+Nqz0KU_m4VdrPbmipITDrhhhkxwkkv-e-9w0cXsh1Q
+```
+
+The contents of the Signed JWK Set in the example are as follows (omitting the
+full certificate chain):
+
+```
+JWT Header:
+{
+  "alg": "ES256",
+  "typ": "JWT",
+  "x5c": ["MII..."]
+}
+
+JWT Payload:
+{
+  "iat": 1667575982,
+  "exp": 1668180782,
+  "iss": "https://server.example.com",
+  "jwks": {
+    "keys": [{
+      "kty": "EC",
+      "crv": "P-256",
+      "alg": "ES256",
+      "kid": "XTSGmh734_J6fOWUbI7BNim7wyvj5LWx8GzuIH7WHw8",
+      "x": "qiGKLwXRJmJR_AOQpWOHXLX5uYIfzvPwDurWvmZBwvw",
+      "y": "ip8nyuLpJ5NpriZzCVKiG0TteqPMkrzfNOUQ8YzeGdk"
+    }]
+  }
+}
 ```
 
 A Verifier that receives such a signed JWK Set validates it by taking the

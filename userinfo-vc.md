@@ -114,7 +114,7 @@ a UserInfo Verifiable Credential:
    indicates support for issuance of UserInfoCredential credentials.
 
 1. The Client issues an authorization request including the
-   `userinfo_credential` scope to request authorization to issue UserInfo
+   `userinfo_credential` scope to request authorization to obtain UserInfo
    credentials, as well as the `openid` scope and other scopes to request access
    to UserInfo information (e.g., `profile`, `email`).
 
@@ -131,7 +131,7 @@ a UserInfo Verifiable Credential:
 
 1. The Client sends a Credential Request specifying that it desires a
    UserInfoCredential, together with a proof that it controls the private key of
-   an signature key pair.
+   a signature key pair.
 
 1. The Credential Response contains a UserInfo VC that attests to the following
    attributes of the Holder:
@@ -217,7 +217,7 @@ Issuance for credential types other than `UserInfoCredential`.
 A UserInfo Verifiable Credential enapsulates the claims that the OP offers via
 the UserInfo endpoint as a Verifiable Credential that can be presented to a
 third-party Verifier.  Having the UserInfo endpoint and the Credential Endpoint
-return the same set of claims allows for the re-use of existing meechanisms for
+return the same set of claims allows for the re-use of existing mechanisms for
 negotiating which claims are provided to a client (e.g., the `profile` and
 `email` scopes).  A UserInfo VC is distinguished from other Verifiable
 Credentials by including the `UserInfoCredential` value in its list of types.
@@ -261,7 +261,7 @@ following requirements:
     public key that the credential subject presented in their credential request
     (see (#credential-request)).
   * The other fields in this object MUST include all of the claims that would
-    be returned an a successful UserInfo request authenticated with the access token
+    be returned on a successful UserInfo request made with the access token
     that was used in the Credential Request.
 
 * In the `vc` claim, the `credentialStatus` field MAY be populated.  If it is
@@ -330,7 +330,7 @@ list of credentials revoked by an OP in a "status list credential". Status list
 credentials for OIDC VCs MUST meet the following requirements, in addition to
 the requirements of [@!StatusList2021]:
 
-* An status list credential MUST be represented as a JWT-formatted VC, as
+* A status list credential MUST be represented as a JWT-formatted VC, as
   specified in Section 6.3.1 of [@!W3C.vc-data-model].  The `alg`, `kid`, and
   `typ` fields in the JWT header and the `exp`, `iss`, `nbf`, `jti`, and `sub`
   claims MUST be populated as specified in that section.  The corresponding
@@ -406,7 +406,7 @@ A Verifier processing an OIDC VC MUST validate it using the following steps:
 1. Verify that the current time is after the time represented in the `nbf` claim
    (if present) and before the time represented by the `exp` claim.
 
-1. If the `vc` claim has a `credentialStatus` field, the verify the VC's
+1. If the `vc` claim has a `credentialStatus` field, verify the VC's
    revocation status as follows:
     1.  Fetch the status list credential from URL in the `statusListCredential`
         field of the `credentialStatus` object.
@@ -434,8 +434,8 @@ since this corresponds to the most common usage pattern for OpenID Connect.
 Endpoints that are optional in the general OpenID for Verifiable Credential
 Issuance specification are also optional here.
 
-The remainder of this section specifies additional requirements that specify a
-single, interoperable flow for issuing UserInfo VCs.
+The remainder of this section specifies additional requirements for a
+single, interoperable flow for issuing UserInfo Verifiable Credentials.
 
 
 ## Server Metadata
@@ -472,7 +472,7 @@ A non-normative example server metadata object is shown below:
 
 ## Authorization Endpoint
 
-A Client requests authorization to issue UserInfo VCs by including the scope
+A Client requests authorization to obtain UserInfo VCs by including the scope
 value `userinfo_credential` in its authorization request.  The OP MUST support
 this scope value.
 
@@ -724,7 +724,7 @@ provide that nonce either in a successful Token Response or in a success or
 error response from the Credential Endpoint. 
 
 When a client receives a nonce via any of these channels, it should store the
-nonce and use to construct a proof in the next credential request it makes.
+nonce and use it to construct a proof in the next credential request it makes.
 Each nonce should only be used once.  Expired nonces should be deleted.
 
 If a client wishes to make a Credential Request and does not have a nonce
@@ -738,8 +738,8 @@ construct a proof for a credential request.
 
 One benefit of verifiable credentials is a looser coupling between the
 credential Issuer (here the OP) and the Verifier.  The Verifier only needs to
-know how to verify signatures from a trusted Issuer; the Issuer need know
-nothing about the Verifier.
+know how to verify signatures from a trusted Issuer; the Issuer don't need to know
+anything about the Verifier.
 
 Verifiers can discover the JWK Set for a given Issuer OP using OpenID Connect
 Discovery [!@OpenID.Discovery].  However, this risks introducing a requirement
@@ -890,7 +890,7 @@ HTTPS with self-signed certificates – vulnerable to impersonation attacks.
 When appropriately integrated in an E2E encryption system, OpenID Verifiable
 Credentials could eliminte the risk of impersonation attacks.  A participant in
 an E2E-secure session would be able to present identity information that the
-other participants could verified as coming from a trusted OP, and thus
+other participants could verify as coming from a trusted OP, and thus
 protected from tampering by the application's servers.
 
 In this regard, the OP would be the Issuer, and the Holder and Verifier roles

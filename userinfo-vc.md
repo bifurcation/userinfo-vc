@@ -93,7 +93,7 @@ This specification defines the interfaces required for an OpenID Provider to
 expose the information provided by the UserInfo endpoint in the form of a
 Verifiable Credential:
 
-* A new "UserInfoCredential" credential type that carries UserInfo claims
+* A new "UserInfoCredential" Verifiable Credential type that carries UserInfo claims
 * A profile of the OpenID for Verifiable Credential Issuance [@!OpenID4VCI]
 * A profile of the StatusList2021 mechanism for credential revocation [@!StatusList2021]
 * A new mechanism for asynchronously distributing an OpenID Provider's JWK Set
@@ -101,6 +101,28 @@ Verifiable Credential:
 Together, these interfaces allow the issuance of Verifiable Credentials
 containing OpenID Connect claims with the same degree of simplicity and
 interoperability as OpenID Connect itself.
+
+## Terminology
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+document are to be interpreted as described in RFC 2119 [@!RFC2119]. 
+
+We use the terminology defined in [@!OpenID.Core], [@!@!W3C.vc-data-model], and
+[@!OpenID4VCI].
+
+This document introduces the following terms:
+
+UserInfo Verifiable Credential (UserInfo VC):
+: A Verifiable Credential carrying a set of claims that would be provided by the
+OpenID Connect UserInfo endpoint, as specified in
+(#userinfo-verifiable-credential-type)
+
+Signed JWK Set:
+: A JWK Set for an OpenID Provider, encapsulated on a JWT as described in
+(#signed-openid-provider-jwk-sets).  Distributing an OP's keys in a Signed JWK
+Set allows them to be trusted even when the OP's discovery endpoint is
+unreachable.
 
 
 # Overview
@@ -111,12 +133,12 @@ Issuance [@!OpenID4VCI], the overal; flow of the protocol is the same.
 a UserInfo Verifiable Credential: 
 
 1. The Client (Holder in the VC model) obtains the OP's server metadata, which
-   indicates support for issuance of UserInfoCredential credentials.
+   indicates support for issuance of UserInfo VCs.
 
 1. The Client issues an authorization request including the
-   `userinfo_credential` scope to request authorization to obtain UserInfo
-   credentials, as well as the `openid` scope and other scopes to request access
-   to UserInfo information (e.g., `profile`, `email`).
+   `userinfo_credential` scope to request authorization to obtain UserInfo VCs,
+   as well as the `openid` scope and other scopes to request access to UserInfo
+   information (e.g., `profile`, `email`).
 
 1. The OP authenticates the user and obtains the user's consent to credential
    issuance.
@@ -129,9 +151,9 @@ a UserInfo Verifiable Credential:
     * An access token that can be used to access the credential endpoint
     * A nonce that can be used to prove possession of a private key
 
-1. The Client sends a Credential Request specifying that it desires a
-   UserInfoCredential, together with a proof that it controls the private key of
-   a signature key pair.
+1. The Client sends a Credential Request specifying that it desires a UserInfo
+   VC, together with a proof that it controls the private key of a signature key
+   pair.
 
 1. The Credential Response contains a UserInfo VC that attests to the following
    attributes of the Holder:
@@ -193,7 +215,7 @@ a UserInfo Verifiable Credential:
     |                                             |                 '------>|
     |                                             |                         |
 ```
-Figure: Issuance, presentation, and verification of a UserInfo credential
+Figure: Issuance, presentation, and verification of a UserInfo VC
 {#fig-overview}
 
 
@@ -222,8 +244,8 @@ negotiating which claims are provided to a client (e.g., the `profile` and
 `email` scopes).  A UserInfo VC is distinguished from other Verifiable
 Credentials by including the `UserInfoCredential` value in its list of types.
 
-A UserInfo Verifiable Credential issued by an OpenID Provider MUST satisfy the
-following requirements:
+A UserInfo VC issued by an OpenID Provider MUST satisfy the following
+requirements:
 
 * An UserInfo VC MUST be represented as a JWT-formatted VC, as specified in
   Section 6.3.1 of [@!W3C.vc-data-model].
@@ -268,9 +290,9 @@ following requirements:
   populated, then it MUST meet the requirements of (#revocation-information).
 
 An UserInfo VC is thus a JWT that can be signed and verified in largely the same
-way as the other JWTs produced by OpenID Connect (e.g., ID tokens and signed
-UserInfo responses), but using the VC syntax to present a public key for the
-credential subject in addition to the claims provided by the OP.
+way as the other JWTs produced by OpenID Connect (e.g., ID tokens), but using
+the VC syntax to present a public key for the credential subject in addition to
+the claims provided by the OP.
 
 A non-normative example of a UserInfo VC is shown below:
 
@@ -382,7 +404,7 @@ JWT payload = {
 Figure: A status list credential
 
 
-## UserInfo Credential Verification
+## UserInfo VC Verification
 
 A Verifier processing an OIDC VC MUST validate it using the following steps:
 
@@ -435,7 +457,7 @@ Endpoints that are optional in the general OpenID for Verifiable Credential
 Issuance specification are also optional here.
 
 The remainder of this section specifies additional requirements for a
-single, interoperable flow for issuing UserInfo Verifiable Credentials.
+single, interoperable flow for issuing UserInfo VCs.
 
 
 ## Server Metadata
@@ -907,9 +929,9 @@ presents one or more credentials to a Verifier and proves that the Holder is the
 legitimate subject of those credentials.  As a result, the Verifier can
 associate the attributes in the credentials with the Holder.
 
-UserInfo VC are a specific type of Verifiable Credential, so they can be used in
-this protocol to present OpenID claims to a Verifier.  For example, a UserInfo
-VC containing a `email` claim could tell the Verifier that the Holder
+UserInfo VCs are a specific type of Verifiable Credential, so they can be used
+in this protocol to present OpenID claims to a Verifier.  For example, a
+UserInfo VC containing a `email` claim could tell the Verifier that the Holder
 legitimately represents that email address (assuming the Verifier trusts the OP
 to make such claims).
 

@@ -703,7 +703,7 @@ Content-Type: application/json
   "type": ["VerifiableCredential", "UserInfoCredential"],
 }
 
-HTTP/1.1 200 OK
+HTTP/1.1 400 Bad Request
 Content-Type: application/json; charset=utf-8
 
 {

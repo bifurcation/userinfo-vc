@@ -108,7 +108,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
 "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in RFC 2119 [@!RFC2119]. 
 
-We use the terminology defined in [@!OpenID.Core], [@!@!W3C.vc-data-model], and
+We use the terminology defined in [@!OpenID.Core], [@!W3C.vc-data-model], and
 [@!OpenID4VCI].
 
 This document introduces the following terms:

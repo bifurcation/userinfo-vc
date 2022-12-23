@@ -592,7 +592,8 @@ Content-Type: application/json
             qnOFiRSbsicfhNWFppbWwOxvkpDPhfxb9a1Usxi7kmUnPEpV278QkiddHw"
 
   }
-}```
+}
+```
 
 The content of the `proof` JWT is as follows:
 
@@ -609,9 +610,8 @@ JWT Header:
   }
 }
 
-JWT Payload:
 
-```
+JWT Payload:
 {
   "ath": "GUqy-jrHUQvYwAy0AvxDdm960yV1urBea1z9xPj5Pfo",
   "iss": "bOx8R44XhIHi3A965zBEn",

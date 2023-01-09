@@ -128,7 +128,7 @@ unreachable.
 # Overview
 
 Since this specification is mainly a profile of OpenID for Verifiable Credential
-Issuance [@!OpenID4VCI], the overal; flow of the protocol is the same.
+Issuance [@!OpenID4VCI], the overall flow of the protocol is the same.
 (#fig-overview) shows how an OP is involved in the issuance and verification of
 a UserInfo Verifiable Credential: 
 
@@ -347,7 +347,7 @@ Figure: The contents of an OpenID Verifiable Credential
 ## Revocation Information
 
 If present, credential status information in a UserInfo VC MUST use the
-StatusList2021 mechanism [!@StatusList2021].  This mechanism provides a concise
+StatusList2021 mechanism [@!StatusList2021].  This mechanism provides a concise
 list of credentials revoked by an OP in a "status list credential". Status list
 credentials for OIDC VCs MUST meet the following requirements, in addition to
 the requirements of [@!StatusList2021]:
@@ -592,7 +592,8 @@ Content-Type: application/json
             qnOFiRSbsicfhNWFppbWwOxvkpDPhfxb9a1Usxi7kmUnPEpV278QkiddHw"
 
   }
-}```
+}
+```
 
 The content of the `proof` JWT is as follows:
 
@@ -609,9 +610,8 @@ JWT Header:
   }
 }
 
-JWT Payload:
 
-```
+JWT Payload:
 {
   "ath": "GUqy-jrHUQvYwAy0AvxDdm960yV1urBea1z9xPj5Pfo",
   "iss": "bOx8R44XhIHi3A965zBEn",
@@ -764,7 +764,7 @@ know how to verify signatures from a trusted Issuer; the Issuer don't need to kn
 anything about the Verifier.
 
 Verifiers can discover the JWK Set for a given Issuer OP using OpenID Connect
-Discovery [!@OpenID.Discovery].  However, this risks introducing a requirement
+Discovery [@!OpenID.Discovery].  However, this risks introducing a requirement
 that the Issuer's discovery endpoint be online at the time of verification.  In
 order to avoid such a requirement, this section defines a mechanism for an OP to
 sign its JWK Set to prove its authenticity to verifiers.  Such a signed JWK Set
@@ -876,7 +876,7 @@ folloinwg steps:
 1. Verify that the JWT has not expired, according to its `exp` claim.
 
 1. Verify that the certificate chain in the `x5c` field is valid from a trusted
-   certificate authority (see [!@RFC5280][!@RFC6125]).
+   certificate authority (see [@!RFC5280][@!RFC6125]).
 
 1. Verify that the end-entity certificate matches the Issuer ID.
 

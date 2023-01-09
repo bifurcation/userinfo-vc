@@ -128,7 +128,7 @@ unreachable.
 # Overview
 
 Since this specification is mainly a profile of OpenID for Verifiable Credential
-Issuance [@!OpenID4VCI], the overal flow of the protocol is the same.
+Issuance [@!OpenID4VCI], the overall flow of the protocol is the same.
 (#fig-overview) shows how an OP is involved in the issuance and verification of
 a UserInfo Verifiable Credential: 
 
